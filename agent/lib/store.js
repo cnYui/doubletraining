@@ -1,0 +1,47 @@
+// Persistence over any Web Storage-shaped object (localStorage in the Page,
+// an in-memory fake in tests). Failures degrade to an unsaved session.
+import { sanitizeDays, seedDays } from './workout.js';
+
+export const STORAGE_KEY = 'doubletraining.days';
+export const SEED_VERSION = 1;
+
+function readRaw(storage) {
+  if (!storage) return null;
+  try {
+    return storage.getItem(STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+export function saveDays(storage, days) {
+  if (!storage) return false;
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ seedVersion: SEED_VERSION, days }));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Returns { days, persisted, seeded }. Missing, corrupt, or outdated data is
+// replaced by the example plan so the Page always has something to show.
+export function loadDays(storage, todayKey) {
+  const raw = readRaw(storage);
+  if (typeof raw === 'string' && raw) {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      parsed = null;
+    }
+    if (
+      parsed && parsed.seedVersion === SEED_VERSION && parsed.days &&
+      typeof parsed.days === 'object' && !Array.isArray(parsed.days)
+    ) {
+      return { days: sanitizeDays(parsed.days), persisted: true, seeded: false };
+    }
+  }
+  const days = seedDays(todayKey);
+  return { days, persisted: saveDays(storage, days), seeded: true };
+}

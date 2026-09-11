@@ -1,0 +1,1 @@
+{"schemaVersion":1,"scopeClosed":true,"claims":[{"family":"input.voice.unknown","surface":"App","description":"Spoken requests open the training calendar or a specific training day"},{"family":"page.route","surface":"App","description":"The Agent host opens the calendar or day Page with the requested date"}]}

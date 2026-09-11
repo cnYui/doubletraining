@@ -1,0 +1,6 @@
+{
+  "pages": ["pages/dates/index", "pages/day/index"],
+  "window": {
+    "navigationBarTitleText": "Double Training"
+  }
+}

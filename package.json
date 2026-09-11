@@ -1,0 +1,13 @@
+{
+  "name": "doubletraining",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Double Training: a Rokid Glasses AIUI agent for day-by-day workout check-ins.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
