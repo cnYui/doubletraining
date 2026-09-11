@@ -318,8 +318,10 @@
   }
   .issue .sym { font-family: var(--display); font-weight: 600; font-size: 1.75cqw; line-height: 1.15; color: var(--ink); }
   .issue b { font-weight: 600; color: var(--ink); }
-  .issue .next { color: var(--ink); }
-  .issue .next::before { content: "Next  "; font-family: var(--mono); font-size: .86em; letter-spacing: .08em; color: #9a5b12; }
+  .issue.ok { border-top-color: var(--plate); }
+  .issue .state { font-family: var(--mono); font-size: .98cqw; letter-spacing: .06em; text-transform: uppercase; color: #9a5b12; }
+  .issue.ok .state { color: var(--plate); }
+  .pair { display: flex; flex-direction: column; gap: 1.4cqw; width: 36cqw; flex-shrink: 0; }
 
   /* 9: key table */
   .keys { width: 100%; border-collapse: collapse; font-size: 1.2cqw; }
@@ -633,24 +635,30 @@
   <!-- 8 -->
   <section class="slide" id="s8" aria-label="Chat card">
     <div class="inner">
-      <div class="rail"><span><b>Chat card</b> · open issues</span><span>08 / 12</span></div>
+      <div class="rail"><span><b>Chat card</b> · found and fixed</span><span>08 / 12</span></div>
       <h2>The chat card caught two bugs</h2>
-      <p class="lede">Studio can also run a Page inside the conversation as a 448 × 150 card. Capturing it for this deck exposed two problems the full-size preview hides.</p>
+      <p class="lede">Studio can also run a Page inside the conversation as a 448 × 150 card. A probe build showed what that card really supports.</p>
       <div class="body" style="align-items: flex-start">
-        <figure class="lens" style="width: 44cqw">
-          <div class="screen card"><img src="shots/07-card.png" alt="Chat card showing the top of the full day layout, dated Thursday October 1, 0 of 15 sets"></div>
-          <figcaption><b>Chat card · 448 × 150</b><span class="tag tag-live">Studio capture</span></figcaption>
-        </figure>
+        <div class="pair">
+          <figure class="lens">
+            <div class="screen card"><img src="shots/07-card.png" alt="Before: chat card showing the top of the full day layout, dated Thursday October 1"></div>
+            <figcaption><b>Before · Thu, Oct 1, full layout</b><span class="tag tag-live">Studio capture</span></figcaption>
+          </figure>
+          <figure class="lens">
+            <div class="screen card"><img src="shots/08-card-probe.png" alt="Probe build in the chat card: letters W, H and C, window 448 by 150, target _current, dated Friday September 11"></div>
+            <figcaption><b>Probe · W H C = width, height, target match</b><span class="tag tag-live">Studio capture</span></figcaption>
+          </figure>
+        </div>
         <div class="issues">
-          <div class="issue">
-            <p class="sym">The compact layout never switched on</p>
-            <p>The Page drew the top of its full layout. The <code>max-height: 240px</code> rule that should collapse it to the current exercise did not match inside the card.</p>
-            <p class="next">Find a size signal the card reports reliably, then check on the glasses.</p>
+          <div class="issue ok">
+            <p class="sym">The date ran 20 days ahead</p>
+            <p>−28,800 is UTC+8 counted in seconds; read as minutes it adds exactly 20 days. <code>normalizeOffsetMinutes()</code> now converts it, and the probe card opened <b>Fri, Sep 11</b>.</p>
+            <p class="state">Fixed · confirmed in the Studio card</p>
           </div>
           <div class="issue">
-            <p class="sym">The date ran 20 days ahead</p>
-            <p>On Fri, Sep 11 the card opened <b>Thu, Oct 1</b>. 28,800 minutes is exactly 20 days, and −28,800 is UTC+8 counted in seconds, so this host most likely reports the timezone offset in seconds while <code>todayKey()</code> expects minutes.</p>
-            <p class="next">Ignore offsets beyond ±14 hours.</p>
+            <p class="sym">The compact layout never switched on</p>
+            <p>The <code>max-height: 240px</code> query did match in the card (letter H). The rules inside it, written as <code>.shell .full-on</code> and <code>.shell .compact</code>, never applied; they are plain class selectors now.</p>
+            <p class="state">Fixed in code · not yet re-checked in Studio</p>
           </div>
         </div>
       </div>
@@ -712,13 +720,14 @@
             <li>Tap-to-tick sets, auto-advance, cardio completion</li>
             <li>Workout summary with volume and last-session comparison</li>
             <li>Full 480 × 352 layout in the effect preview</li>
-            <li>27 unit tests passing; strict project validation clean</li>
+            <li>Chat card opens the right date after the timezone fix</li>
+            <li>29 unit tests passing; strict project validation clean</li>
           </ul>
         </div>
         <div class="col todo">
           <h3>Open issues and not verified yet</h3>
           <ul>
-            <li>Chat card: compact layout doesn't switch on; date runs 20 days ahead</li>
+            <li>Chat-card compact layout: fixed in code, not yet re-checked in Studio</li>
             <li>Anything on physical Rokid Glasses: optics, key order, nod</li>
             <li>Double tap as Back (never reaches Pages in the simulator)</li>
             <li>Voice routing with a <code>date</code> slot (needs build &amp; review)</li>
@@ -743,11 +752,11 @@
             <span class="c"># import this directory</span><br>
             github.com/cnYui/doubletraining/tree/main/agent<br>
             <span class="c"># run the logic tests</span><br>
-            npm test&nbsp;&nbsp;<span class="c">→ 27 passing</span>
+            npm test&nbsp;&nbsp;<span class="c">→ 29 passing</span>
           </div>
         </div>
         <div class="steps">
-          <div class="step"><span class="n">1</span><p><b>Fix the chat-card bugs.</b> Guard the timezone offset; find a compact-layout trigger that works in the card.</p></div>
+          <div class="step"><span class="n">1</span><p><b>Re-check the chat card in Studio.</b> The date fix is confirmed; the compact-layout fix still needs one look.</p></div>
           <div class="step"><span class="n">2</span><p><b>Physical glasses run.</b> Confirm key order, double tap as Back, readability in a bright gym.</p></div>
           <div class="step"><span class="n">3</span><p><b>Build &amp; review in Studio</b> so voice can open a day by date.</p></div>
           <div class="step"><span class="n">4</span><p><b>Voice logging</b> for off-plan sets ("only 6 reps"), then bring back the rest timer.</p></div>

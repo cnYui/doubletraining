@@ -22,6 +22,7 @@
 3. In Studio (`https://aiui.rokid.com`), the whole **New Agent** button at the top left opens a menu → **GitHub Import** → enter
    `https://github.com/cnYui/doubletraining/tree/main/agent` → **Confirm import**.
    - **Importing the same URL again updates the existing `cnYui/doubletraining` project in place** (no duplicate project), and the effect preview re-renders with the new code.
+   - **Importing a different URL creates a separate project**: importing a branch (`tree/<branch>/agent`) on 2026-09-11 added a second `cnYui/doubletraining` project instead of updating the first. Avoid `/` in branch names you import (`tree/a/b/agent` is ambiguous).
    - The project's "···" menu only offers upload to cloud / overwrite local / local import / rename / delete; there is no "pull from GitHub".
    - The import field keeps the previous URL and clearing it with the keyboard is unreliable; set it as a form value (full replacement), then confirm. The dropdown closes between separate operations, so open it and click GitHub Import in one go.
 4. In the chat, send `/debug` followed by a request to run `pages/dates/index` on the simulated glasses. `/debug` turns into a chip; press the send button. The inline card appears → click **Enter** → the canvas moves into the **Effect Preview** window (480 × 352). The phrasing tested so far was Chinese; English phrasing is untested, and some phrasings get a "cannot do that" reply.
@@ -42,27 +43,31 @@ The rest countdown between sets is switched off at the user's request: `REST_TIM
 
 ## Studio runtime pitfalls (all worked around in code — don't undo them)
 
-- The runtime is QuickJS; the effect-preview run reports **time zone UTC (`getTimezoneOffset()` = 0)** (a chat-card run behaves differently; see Open bugs).
+- The runtime is QuickJS; the effect-preview run reports **time zone UTC (`getTimezoneOffset()` = 0)**, while the chat card most likely reports the offset in seconds. `normalizeOffsetMinutes()` in `lib/dates.js` accepts both; don't use `getTimezoneOffset()` directly.
 - **`new Date(y, m, d)` and `setDate()` are unreliable**: the same code returned different results on consecutive calls, and the example plan was once written a month early. All date math uses integer days since 1970-01-01; "today" comes only from `Date.now()` and the UTC offset.
 - **The loop variable is not resolved in attributes of the element that carries `ink:for`** (log: `Template variable 'row.tone' is missing`). Always loop with `<block ink:for ... ink:for-item="x">` wrapped around the inner element.
 - **`ink:for` rows inside an `ink:if` block that is destroyed and re-created do not render again** (exercise rows vanished after returning from rest). The day Page keeps its panels mounted; each panel binds its own data-driven `full-on` class.
 - **A dynamic class on the `<page>` root is not applied** (`mode-*` in `<page class="shell mode-{{mode}}">` never applied, so the day Page went black). Use only static classes on the root; put dynamic classes on ordinary `view` elements (proven on calendar rows and hints).
-- **After "Enter", the effect preview keeps the `_current` target** at 480 × 352, so the compact layout is keyed to height (`@media (max-height: 240px)`), not to the target. The inline card measured 448 × 150, but the compact layout did not switch on there either (see Open bugs).
+- **After "Enter", the effect preview keeps the `_current` target** at 480 × 352, so the compact layout is keyed to height (`@media (max-height: 240px)`), not to the target. In the 448 × 150 chat card that query matches.
+- **Inside `@media`, rules scoped under the page root did not apply**: in the chat card, `.shell .full-on` / `.shell .compact` never took effect while single-class rules in the same query did. Descendant selectors between ordinary views (`.day-sel .dnum`, `.row-focus .row-rx`) work. Keep media-query rules to plain classes.
 - Ink's `localStorage` lives neither in the browser's localStorage nor in IndexedDB, but it survives re-renders within one Studio session. Raising `SEED_VERSION` in `store.js` rewrites the example data.
 - **With the browser pane hidden the page stalls completely**: `visibilityState = hidden` and zero `requestAnimationFrame` frames, so a GitHub import sticks at the archive-unpacking step and the effect preview stops rendering. Keep the pane visible and the window in front while testing.
 
-## Open bugs (found 2026-09-11 while capturing the deck)
+## Chat card findings (2026-09-11)
 
-- **The chat card doesn't use the compact layout.** A fresh `/debug` card (446 × 150 CSS px, canvas 502 × 168) drew the top of the full day layout; `@media (max-height: 240px)` never matched there. The compact layout has not been seen working anywhere yet.
-- **The chat card's date runs 20 days ahead.** On Fri, Sep 11 the card opened Thu, Oct 1. 28,800 minutes is exactly 20 days and −28,800 is UTC+8 in seconds, so that host most likely returns `getTimezoneOffset()` in seconds while the effect-preview run returns 0. `todayKey()` in `lib/dates.js` trusts the value; it should ignore offsets beyond ±14 h (840 minutes).
-- The same card started from a fresh example plan (0 / 15 sets), so a new `/debug` run apparently does not share `localStorage` with the effect-preview run.
+Found while capturing the deck, then measured with a temporary probe build (letters shown only while a media query matched, plus `wx.getWindowInfo()` and `onTargetChanged` logging):
+
+- In the chat card, `(max-height: 240px)`, `(max-width: 460px)` and `(target: _current)` all match; `(min-width: 470px)`, `(min-height: 300px)` and `(target: _blank)` do not. `wx.getWindowInfo()` returns 448 × 150, `onTargetChanged` reports `_current`, and `wx.onWindowResize` is undefined.
+- **Date 20 days ahead — fixed.** Before the fix the card opened Thu, Oct 1 on Fri, Sep 11 (UTC+8 as −28,800 seconds, read as minutes). With `normalizeOffsetMinutes()` the probe card opened Fri, Sep 11. The raw offset value was not captured: the log panel stayed empty.
+- **Compact layout never switched on — fixed in code, not re-checked.** The height query matched; the `.shell …` rules inside it did not apply. They are plain class selectors now. The Browser pane was hidden before the fixed build could be imported, and the user chose to skip the Studio re-check.
+- A new `/debug` card starts with its own example plan (0 / 15 sets), so it apparently doesn't share `localStorage` with the effect-preview run.
 - The canvas in the effect preview never returns to its chat card on its own: the card's button stays disabled ("Entered"), and a simulator double tap doesn't bring it back. The card text says it returns "after going back to the desktop".
 
 ## Verified / not verified
 
-**Verified in the simulator (2026-09-11):** import and re-import; the calendar renders five rows and the week counter, swipes move one day at a time, and a tap opens the day with `wx.navigateTo`; the day list renders; a tap logs a set (with the rest screen, before it was switched off); swiping during rest adjusted the next set's weight; swiping to cardio and tapping marked it done; the day Page no longer goes black after navigation. After the English conversion (765f5a6): English text fits the 480 × 352 layout on both Pages; tap-to-tick without the rest screen (0 → 3 → 15 / 15 sets, focus advances to the next open exercise); the done state (15 sets, 6,580 kg, cardio 30 min, `vs Sep 4 · Bench Press +2.5 kg · Incline DB Press same · Pec Deck +5 kg`). Screenshots are in `docs/deck/shots/`.
+**Verified in the simulator (2026-09-11):** import and re-import; the calendar renders five rows and the week counter, swipes move one day at a time, and a tap opens the day with `wx.navigateTo`; the day list renders; a tap logs a set (with the rest screen, before it was switched off); swiping during rest adjusted the next set's weight; swiping to cardio and tapping marked it done; the day Page no longer goes black after navigation. After the English conversion (765f5a6): English text fits the 480 × 352 layout on both Pages; tap-to-tick without the rest screen (0 → 3 → 15 / 15 sets, focus advances to the next open exercise); the done state (15 sets, 6,580 kg, cardio 30 min, `vs Sep 4 · Bench Press +2.5 kg · Incline DB Press same · Pec Deck +5 kg`). The chat card opens the right date after the offset fix (probe build). Screenshots are in `docs/deck/shots/`.
 
-**Not verified / open:** the chat-card bugs above; whether a covered calendar Page still receives keys (a visibility guard was added); voice routing and the `date` slot (draft agents don't register the schema); nod; everything on physical glasses. Simulator results are not device results; the Skill's release gates need signed device evidence.
+**Not verified / open:** the compact layout in the chat card after the selector fix; the calendar Page in a chat card; whether a covered calendar Page still receives keys (a visibility guard was added); voice routing and the `date` slot (draft agents don't register the schema); nod; everything on physical glasses. Simulator results are not device results; the Skill's release gates need signed device evidence.
 
 ## Other
 
