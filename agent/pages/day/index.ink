@@ -1066,10 +1066,13 @@ export default {
 .compact-boxes { margin-left: auto; }
 
 /* Switch by available height, not target: Studio's effect preview keeps the
-   inline card's _current target while giving it the full 480 x 352. */
+   inline card's _current target while giving it the full 480 x 352. Keep the
+   rules inside to plain classes: in the chat card this query matched, but
+   `.shell .full-on` / `.shell .compact` (scoped under the page root) never
+   applied. Coming later in the sheet, these override `.full-on` and `.compact`. */
 @media (max-height: 240px) {
   .shell { padding: 8px 12px; }
-  .shell .full-on { display: none; }
-  .shell .compact { display: flex; }
+  .full-on { display: none; }
+  .compact { display: flex; }
 }
 </style>
