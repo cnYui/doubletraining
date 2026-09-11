@@ -106,7 +106,10 @@ export default {
       onLoneGlobalHook: () => this._openSelected()
     });
     this._id = Math.random().toString(36).slice(2, 6);
-    console.log('[doubletraining] dates onLoad ' + this._id + ' query=' + JSON.stringify(query));
+    let tz = 'n/a';
+    try { tz = new Date().getTimezoneOffset(); } catch (error) { tz = 'error'; }
+    console.log('[doubletraining] dates onLoad ' + this._id + ' query=' + JSON.stringify(query) +
+      ' now=' + Date.now() + ' tz=' + tz + ' today=' + this._todayKey);
     this._reload();
   },
 

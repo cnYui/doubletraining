@@ -82,10 +82,24 @@ export function keyFromDayNumber(days) {
     pad2(parts.day);
 }
 
+// Real offsets lie within UTC-12..UTC+14, i.e. -840..720 minutes. The Studio
+// /debug chat card put "today" exactly 20 days ahead, which matches UTC+8
+// reported in seconds (-28800) instead of minutes (-480). A whole number of
+// minutes written in seconds is converted; anything else out of range falls
+// back to UTC.
+const MAX_OFFSET_MINUTES = 840;
+
+export function normalizeOffsetMinutes(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  if (Math.abs(value) <= MAX_OFFSET_MINUTES) return value;
+  const minutes = value / 60;
+  if (Number.isInteger(minutes) && Math.abs(minutes) <= MAX_OFFSET_MINUTES) return minutes;
+  return 0;
+}
+
 // `offsetMinutes` follows Date#getTimezoneOffset: UTC = local + offset.
 export function keyFromClock(nowMs, offsetMinutes) {
-  const offset = typeof offsetMinutes === 'number' && Number.isFinite(offsetMinutes) ?
-    offsetMinutes : 0;
+  const offset = normalizeOffsetMinutes(offsetMinutes);
   return keyFromDayNumber(Math.floor((nowMs - offset * 60000) / DAY_MS));
 }
 
