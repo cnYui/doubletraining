@@ -598,18 +598,20 @@ export default {
       </view>
     </view>
     <view class="rows">
-      <view ink:for="{{rows}}" ink:for-item="row" ink:key="key" class="row {{row.done ? 'row-done' : ''}} {{row.focus ? 'row-focus' : ''}}">
-        <text class="row-name">{{row.name}}</text>
-        <text class="row-rx">{{row.rx}}</text>
-        <view class="boxes" ink:if="{{row.kind === 'strength'}}">
-          <view ink:for="{{row.boxes}}" ink:for-item="box" ink:key="k" class="box box-{{box.s}}"></view>
+      <block ink:for="{{rows}}" ink:for-item="row" ink:key="key">
+        <view class="row {{row.done ? 'row-done' : ''}} {{row.focus ? 'row-focus' : ''}}">
+          <text class="row-name">{{row.name}}</text>
+          <text class="row-rx">{{row.rx}}</text>
+          <view class="boxes" ink:if="{{row.kind === 'strength'}}">
+            <block ink:for="{{row.boxes}}" ink:for-item="box" ink:key="k"><view class="box box-{{box.s}}"></view></block>
+          </view>
+          <text class="chip {{row.done ? 'chip-on' : ''}}" ink:else>{{row.chip}}</text>
         </view>
-        <text class="chip {{row.done ? 'chip-on' : ''}}" ink:else>{{row.chip}}</text>
-      </view>
+      </block>
     </view>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 
@@ -635,7 +637,7 @@ export default {
     <text class="step" ink:if="{{stepText}}">{{stepText}}</text>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 
@@ -656,7 +658,7 @@ export default {
     <text class="delta">{{deltaText}}</text>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 
@@ -668,7 +670,7 @@ export default {
     <text class="empty-text">{{emptyText}}</text>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 
@@ -680,11 +682,11 @@ export default {
     <view class="compact-line">
       <text class="compact-value">{{compactValue}}</text>
       <view class="boxes compact-boxes" ink:if="{{compactBoxes.length}}">
-        <view ink:for="{{compactBoxes}}" ink:for-item="box" ink:key="k" class="box box-{{box.s}}"></view>
+        <block ink:for="{{compactBoxes}}" ink:for-item="box" ink:key="k"><view class="box box-{{box.s}}"></view></block>
       </view>
     </view>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 </page>
@@ -1025,14 +1027,11 @@ export default {
 
 .compact-boxes { margin-left: auto; }
 
-@media (target: _current) {
+/* Switch by available height, not target: Studio's effect preview keeps the
+   inline card's _current target while giving it the full 480 x 352. */
+@media (max-height: 240px) {
   .shell { padding: 8px 12px; }
   .full { display: none; }
   .compact { display: flex; }
-}
-
-@media (target: _blank) {
-  .full { display: flex; }
-  .compact { display: none; }
 }
 </style>

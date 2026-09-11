@@ -184,6 +184,12 @@ export default {
     const result = loadDays(this._storage, this._todayKey);
     this._days = result.days;
     this._persisted = result.persisted;
+    const keys = Object.keys(this._days).sort();
+    console.log('[doubletraining] today=' + this._todayKey + ' selected=' + this._selectedKey +
+      ' diff=' + diffDays(this._todayKey, this._selectedKey) + ' days=' + keys.length +
+      ' range=' + keys[0] + '..' + keys[keys.length - 1] + ' seeded=' + result.seeded +
+      ' persisted=' + result.persisted + ' storage=' + (this._storage ? 'yes' : 'no') +
+      ' tz=' + new Date().getTimezoneOffset() + ' now=' + Date.now());
     this._render();
   },
 
@@ -191,6 +197,8 @@ export default {
     const week = weekProgress(this._days, this._todayKey);
     const rows = buildRows(this._days, this._selectedKey, this._todayKey);
     const selected = rows[2];
+    console.log('[doubletraining] week=' + JSON.stringify(week) + ' selectedRow=' +
+      JSON.stringify(selected));
     this.setData({
       monthText: yearMonthLabel(this._selectedKey),
       weekText: week.planned ? '本周 ' + week.done + ' / ' + week.planned : '本周未安排',
@@ -210,22 +218,24 @@ export default {
       <text class="meta">{{weekText}}</text>
     </view>
     <view class="days">
-      <view ink:for="{{rows}}" ink:for-item="row" ink:key="slot" class="day day-{{row.tone}}">
-        <view class="tick tick-{{row.tone}}"></view>
-        <text class="dnum">{{row.dnum}}</text>
-        <view class="dmeta">
-          <text class="wd">{{row.wd}}</text>
-          <text class="mo" ink:if="{{row.tone === 'sel'}}">{{row.month}}</text>
+      <block ink:for="{{rows}}" ink:for-item="row" ink:key="slot">
+        <view class="day day-{{row.tone}}">
+          <view class="tick tick-{{row.tone}}"></view>
+          <text class="dnum">{{row.dnum}}</text>
+          <view class="dmeta">
+            <text class="wd">{{row.wd}}</text>
+            <text class="mo" ink:if="{{row.tone === 'sel'}}">{{row.month}}</text>
+          </view>
+          <text class="chip {{row.chipTone}}" ink:if="{{row.chip}}">{{row.chip}}</text>
+          <view class="mark mark-{{row.mark}}" ink:if="{{row.mark}}"></view>
+          <text class="dstat">{{row.status}}</text>
+          <text class="chip chip-on chip-today" ink:if="{{row.isToday}}">今天</text>
         </view>
-        <text class="chip {{row.chipTone}}" ink:if="{{row.chip}}">{{row.chip}}</text>
-        <view class="mark mark-{{row.mark}}" ink:if="{{row.mark}}"></view>
-        <text class="dstat">{{row.status}}</text>
-        <text class="chip chip-on chip-today" ink:if="{{row.isToday}}">今天</text>
-      </view>
+      </block>
     </view>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 
@@ -236,7 +246,7 @@ export default {
     </view>
     <text class="compact-status">{{compactStatus}}</text>
     <view class="hint">
-      <text ink:for="{{hint}}" ink:for-item="part" ink:key="k" class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text>
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
     </view>
   </view>
 </page>
@@ -453,14 +463,11 @@ export default {
   color: rgba(64, 255, 94, 0.72);
 }
 
-@media (target: _current) {
+/* Switch by available height, not target: Studio's effect preview keeps the
+   inline card's _current target while giving it the full 480 x 352. */
+@media (max-height: 240px) {
   .shell { padding: 8px 12px; }
   .full { display: none; }
   .compact { display: flex; }
-}
-
-@media (target: _blank) {
-  .full { display: flex; }
-  .compact { display: none; }
 }
 </style>
