@@ -3,15 +3,47 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   clampKey,
+  dayNumber,
   dayNumberLabel,
   diffDays,
   isKey,
+  keyFromClock,
+  keyFromDayNumber,
   resolveDateInput,
   shortLabel,
   weekKeys,
   weekdayLabel,
   yearMonthLabel
 } from '../agent/lib/dates.js';
+
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+test('day numbers match UTC calendar arithmetic', () => {
+  for (const key of ['1969-12-31', '1970-01-01', '2000-02-29', '2026-09-11',
+    '2026-12-31', '2100-03-01']) {
+    const [year, month, day] = key.split('-').map(Number);
+    assert.equal(dayNumber(key), Date.UTC(year, month - 1, day) / 86400000, key);
+    assert.equal(keyFromDayNumber(dayNumber(key)), key);
+  }
+});
+
+test('addDays and weekdays agree with the UTC calendar day by day', () => {
+  for (let offset = -400; offset <= 400; offset += 1) {
+    const expected = new Date(Date.UTC(2026, 8, 11 + offset));
+    const key = addDays('2026-09-11', offset);
+    assert.equal(key, expected.toISOString().slice(0, 10));
+    assert.equal(weekdayLabel(key), WEEKDAYS[expected.getUTCDay()]);
+  }
+});
+
+test('keyFromClock applies the device UTC offset', () => {
+  const now = Date.UTC(2026, 8, 11, 1, 45);
+  assert.equal(keyFromClock(now, 0), '2026-09-11');
+  assert.equal(keyFromClock(now, -540), '2026-09-11');
+  assert.equal(keyFromClock(now, 420), '2026-09-10');
+  assert.equal(keyFromClock(now, Number.NaN), '2026-09-11');
+  assert.equal(keyFromClock(now, undefined), '2026-09-11');
+});
 
 test('isKey accepts only real calendar dates', () => {
   assert.equal(isKey('2026-09-11'), true);

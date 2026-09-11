@@ -19,7 +19,7 @@
 
 <script setup>
 import wx from 'wx';
-import { monthDayLabel, resolveDateInput, shortLabel, toKey } from '../../lib/dates.js';
+import { monthDayLabel, resolveDateInput, shortLabel, todayKey } from '../../lib/dates.js';
 import {
   adjustKg,
   cardioMinutes,
@@ -152,7 +152,7 @@ export default {
     this._rest = null;
     this._lastClock = '';
     this._storage = pageStorage();
-    this._todayKey = toKey(new Date());
+    this._todayKey = todayKey();
     const input = resolveDateInput(query ? query.date : undefined, this._todayKey);
     this._dateKey = input.key;
     this._fromDates = Boolean(query && query.from === 'dates');

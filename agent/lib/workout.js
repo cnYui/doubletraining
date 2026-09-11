@@ -1,6 +1,6 @@
 // Training-day model. Every function is pure over plain JSON objects so the
 // same code runs in the Page and in Node tests.
-import { addDays, fromKey, isKey, weekKeys } from './dates.js';
+import { addDays, dayStartMs, isKey, weekKeys } from './dates.js';
 
 export const DEFAULT_REST_SECONDS = 90;
 const DEFAULT_STEP_KG = 2.5;
@@ -105,7 +105,7 @@ export function seedDays(todayKey) {
       }
     }
     if (completion) {
-      let at = fromKey(key).getTime() + 18 * 3600000;
+      let at = dayStartMs(key) + 18 * 3600000;
       const last = day.items.length - 1;
       day.items.forEach((item, index) => {
         if (completion === 'partial' && index === last) {

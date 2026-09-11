@@ -3,7 +3,8 @@
 import { sanitizeDays, seedDays } from './workout.js';
 
 export const STORAGE_KEY = 'doubletraining.days';
-export const SEED_VERSION = 1;
+// 2: reseed data written by the Date-object build, whose keys drifted in Studio.
+export const SEED_VERSION = 2;
 
 function readRaw(storage) {
   if (!storage) return null;

@@ -27,7 +27,7 @@ import {
   monthLabel,
   resolveDateInput,
   shortLabel,
-  toKey,
+  todayKey,
   weekdayLabel,
   yearMonthLabel
 } from '../../lib/dates.js';
@@ -95,7 +95,7 @@ export default {
   onLoad(query) {
     this._isVisible = false;
     this._storage = pageStorage();
-    this._todayKey = toKey(new Date());
+    this._todayKey = todayKey();
     const input = resolveDateInput(query ? query.date : undefined, this._todayKey);
     this._selectedKey = clampKey(input.key, this._todayKey, RANGE_DAYS);
     this._notice = input.valid ? '' : '没听清日期,已选中今天';
