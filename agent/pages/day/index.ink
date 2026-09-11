@@ -169,11 +169,15 @@ export default {
     const day = this._day();
     this._cursor = Math.max(0, firstOpenIndex(day));
     this._mode = baseMode(day);
+    this._id = Math.random().toString(36).slice(2, 6);
+    console.log('[doubletraining] day onLoad ' + this._id + ' query=' + JSON.stringify(query) +
+      ' mode=' + this._mode);
     this._render();
   },
 
   onShow() {
     this._isVisible = true;
+    console.log('[doubletraining] day onShow ' + this._id);
     if (this._mode !== 'rest') return;
     this._syncRest();
     if (this._mode === 'rest') {
@@ -183,6 +187,7 @@ export default {
   },
 
   onHide() {
+    console.log('[doubletraining] day onHide ' + this._id);
     this._isVisible = false;
     this._input.dispose();
     this._stopRefresh();
@@ -190,6 +195,7 @@ export default {
   },
 
   onUnload() {
+    console.log('[doubletraining] day onUnload ' + this._id);
     this._isVisible = false;
     this._input.dispose();
     this._stopRefresh();
@@ -205,6 +211,10 @@ export default {
 
   onKeyDown(event) {
     if (!event) return;
+    console.log('[doubletraining] day keydown ' + this._id + ' ' + event.code +
+      ' mode=' + this._mode + ' visible=' + this._isVisible);
+    // Keys belong to the visible Page only; ignore anything reaching a covered one.
+    if (!this._isVisible) return;
     if (
       event.code === 'Enter' || event.code === 'Backspace' ||
       event.code === 'ArrowUp' || event.code === 'ArrowDown'
@@ -215,8 +225,11 @@ export default {
 
   onKeyUp(event) {
     if (!event) return;
+    console.log('[doubletraining] day keyup ' + this._id + ' ' + event.code +
+      ' mode=' + this._mode + ' visible=' + this._isVisible);
+    if (!this._isVisible) return;
     if (event.code === 'GlobalHook') {
-      if (this._isVisible) this._input.globalHookUp();
+      this._input.globalHookUp();
       return;
     }
     let owned = false;
@@ -586,8 +599,8 @@ export default {
 };
 </script>
 
-<page class="shell">
-  <view class="full" ink:if="{{mode === 'list'}}">
+<page class="shell mode-{{mode}}">
+  <view class="full panel-list">
     <view class="hdr">
       <text class="title">{{title}}</text>
       <text class="meta">{{progressText}}</text>
@@ -615,7 +628,7 @@ export default {
     </view>
   </view>
 
-  <view class="full" ink:elif="{{mode === 'rest'}}">
+  <view class="full panel-rest">
     <view class="hdr">
       <text class="eyebrow">组间休息</text>
       <text class="cap">{{restLogged}}</text>
@@ -641,7 +654,7 @@ export default {
     </view>
   </view>
 
-  <view class="full" ink:elif="{{mode === 'done'}}">
+  <view class="full panel-done">
     <view class="hdr">
       <text class="eyebrow">{{doneTitle}}</text>
       <text class="meta">{{dateText}}</text>
@@ -662,7 +675,7 @@ export default {
     </view>
   </view>
 
-  <view class="full" ink:else>
+  <view class="full panel-empty">
     <view class="hdr">
       <text class="title">{{title}}</text>
     </view>
@@ -703,13 +716,19 @@ export default {
 
 .full,
 .compact {
-  display: flex;
+  display: none;
   flex-direction: column;
   width: 100%;
   height: 100%;
 }
 
-.compact { display: none; }
+/* Every panel stays mounted and the mode class picks the visible one: in
+   Studio's runtime, ink:for rows inside a re-created ink:if block vanished. */
+.mode-list .panel-list,
+.mode-rest .panel-rest,
+.mode-done .panel-done,
+.mode-empty .panel-empty,
+.mode-restday .panel-empty { display: flex; }
 
 .hdr {
   display: flex;
@@ -1031,7 +1050,7 @@ export default {
    inline card's _current target while giving it the full 480 x 352. */
 @media (max-height: 240px) {
   .shell { padding: 8px 12px; }
-  .full { display: none; }
-  .compact { display: flex; }
+  .shell .full { display: none; }
+  .shell .compact { display: flex; }
 }
 </style>

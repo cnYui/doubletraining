@@ -105,27 +105,36 @@ export default {
       cancel: (timerId) => clearTimeout(timerId),
       onLoneGlobalHook: () => this._openSelected()
     });
+    this._id = Math.random().toString(36).slice(2, 6);
+    console.log('[doubletraining] dates onLoad ' + this._id + ' query=' + JSON.stringify(query));
     this._reload();
   },
 
   onShow() {
+    console.log('[doubletraining] dates onShow ' + this._id);
     this._isVisible = true;
     // Coming back from the day Page: show sets logged there.
     this._reload();
   },
 
   onHide() {
+    console.log('[doubletraining] dates onHide ' + this._id);
     this._isVisible = false;
     this._input.dispose();
   },
 
   onUnload() {
+    console.log('[doubletraining] dates onUnload ' + this._id);
     this._isVisible = false;
     this._input.dispose();
   },
 
   onKeyDown(event) {
     if (!event) return;
+    console.log('[doubletraining] dates keydown ' + this._id + ' ' + event.code +
+      ' visible=' + this._isVisible);
+    // Keys belong to the visible Page only; ignore anything reaching a covered one.
+    if (!this._isVisible) return;
     if (
       event.code === 'Enter' || event.code === 'Backspace' ||
       event.code === 'ArrowUp' || event.code === 'ArrowDown'
@@ -136,8 +145,11 @@ export default {
 
   onKeyUp(event) {
     if (!event) return;
+    console.log('[doubletraining] dates keyup ' + this._id + ' ' + event.code +
+      ' visible=' + this._isVisible);
+    if (!this._isVisible) return;
     if (event.code === 'GlobalHook') {
-      if (this._isVisible) this._input.globalHookUp();
+      this._input.globalHookUp();
       return;
     }
     if (event.code === 'Backspace') {
@@ -184,12 +196,6 @@ export default {
     const result = loadDays(this._storage, this._todayKey);
     this._days = result.days;
     this._persisted = result.persisted;
-    const keys = Object.keys(this._days).sort();
-    console.log('[doubletraining] today=' + this._todayKey + ' selected=' + this._selectedKey +
-      ' diff=' + diffDays(this._todayKey, this._selectedKey) + ' days=' + keys.length +
-      ' range=' + keys[0] + '..' + keys[keys.length - 1] + ' seeded=' + result.seeded +
-      ' persisted=' + result.persisted + ' storage=' + (this._storage ? 'yes' : 'no') +
-      ' tz=' + new Date().getTimezoneOffset() + ' now=' + Date.now());
     this._render();
   },
 
@@ -197,8 +203,6 @@ export default {
     const week = weekProgress(this._days, this._todayKey);
     const rows = buildRows(this._days, this._selectedKey, this._todayKey);
     const selected = rows[2];
-    console.log('[doubletraining] week=' + JSON.stringify(week) + ' selectedRow=' +
-      JSON.stringify(selected));
     this.setData({
       monthText: yearMonthLabel(this._selectedKey),
       weekText: week.planned ? '本周 ' + week.done + ' / ' + week.planned : '本周未安排',
