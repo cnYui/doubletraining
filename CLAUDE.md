@@ -59,6 +59,6 @@ The rest countdown between sets is switched off at the user's request: `REST_TIM
 
 ## Other
 
-- Three zero-byte files in the root — `{s.stopPropagation()`, `rangeDays)`, `{,` — are not project files. They look like cmd.exe redirects of single lines of tool text (the `)` stays in the filename, which only cmd does). Settings hooks, plugins, and `dcg` were ruled out and harmless probes did not reproduce it; a separate session is tracing the cause. The files are not committed and have not been deleted.
+- Stray files in the root — `{s.stopPropagation()`, `rangeDays)`, `{,`, and `{,-` (the last one holds the Windows `AT` command's help text) — are not project files and are not committed. Cause (confirmed 2026-09-11): a global Claude Code hook of the form `cmd /c echo ...` runs through Git Bash, whose MSYS path conversion rewrites `/c` to `C:/`, so cmd starts interactively and executes the hook's stdin — the tool-call JSON — as commands. Escaped quotes in that JSON expose some `>`, `&`, and `|` characters, which created these files. This is a machine-level hook issue, not a project issue; the fix (`cmd //c "..." < /dev/null` or `MSYS_NO_PATHCONV=1`) belongs in the user's global settings.
 - This folder is planned to be renamed `Double Training`; do it after closing the Claude session (Windows won't rename a process's current directory, and session history is stored by path).
 - Temporary `console.log` diagnostics (`[doubletraining] ...` lifecycle and key logs) are still in both Pages while the user debugs in Studio; remove them before release.
