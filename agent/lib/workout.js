@@ -60,6 +60,22 @@ const TEMPLATES = {
   rest: () => ({ focus: 'Rest', rest: true, items: [] })
 };
 
+export const FOCUS_IDS = Object.keys(TEMPLATES);
+
+// Fresh copy of a template day, or null for an unknown focus id.
+export function templateDay(focusId) {
+  const build = Object.prototype.hasOwnProperty.call(TEMPLATES, focusId) ? TEMPLATES[focusId] : null;
+  return build ? build() : null;
+}
+
+export function newStrengthItem(id, name, sets, reps, kg, step, restSec) {
+  return strength(id, name, sets, reps, kg, step, restSec);
+}
+
+export function newCardioItem(id, name, minutes) {
+  return cardio(id, name, minutes);
+}
+
 // [offset from today, template, completion, weight overrides]
 const SEED_SCHEDULE = [
   [-7, 'chest', 'done', { bench: 77.5, 'pec-deck': 40 }],
