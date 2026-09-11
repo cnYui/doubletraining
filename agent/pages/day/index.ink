@@ -50,6 +50,9 @@ import { createTempleInput } from '../../lib/temple.js';
 
 const VISIBLE_ROWS = 5;
 const REFRESH_INTERVAL_MS = 250;
+// Rest countdown is switched off for now: a tap only ticks the set's box.
+// Set to true to bring back the automatic rest screen after each set.
+const REST_TIMER_ENABLED = false;
 
 function pageStorage() {
   try {
@@ -338,7 +341,13 @@ export default {
     }
     const nextIndex = isItemComplete(result.day.items[this._cursor]) ?
       nextOpenIndex(result.day, this._cursor) : this._cursor;
-    this._startRest(result.set, nextIndex, restSecondsFor(item));
+    if (REST_TIMER_ENABLED) {
+      this._startRest(result.set, nextIndex, restSecondsFor(item));
+      return;
+    }
+    this._cursor = Math.max(0, nextIndex);
+    this._notice = '已记 ' + result.set.name + ' 第 ' + result.set.number + ' 组';
+    this._render();
   },
 
   _startRest(set, nextIndex, seconds) {
