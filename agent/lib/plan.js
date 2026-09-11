@@ -444,6 +444,17 @@ export const PLAN_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'not_a_change',
+      description: 'The user asked a question, chatted, or said something that is not a plan change or is too unclear to apply. Never guess a change instead.',
+      parameters: {
+        type: 'object',
+        properties: { reason: { type: 'string', description: 'Short reason, e.g. "question about today"' } }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'finish',
       description: 'The user is done editing: save and leave the editor.',
       parameters: { type: 'object', properties: {} }
@@ -462,7 +473,8 @@ export function describeDay(day) {
 export function buildSystemPrompt(context) {
   const lines = [
     'You edit a workout plan on smart glasses. The user speaks one short command at a time.',
-    'Respond only by calling exactly one tool; never answer in prose. If the request is unclear, still pick the closest tool.',
+    'Respond only by calling exactly one tool; never answer in prose.',
+    'Only call a changing tool when the user clearly asks for that change. For questions, chat, or anything unclear, call not_a_change; never guess.',
     'Today is ' + shortLabel(context.todayKey) + ' (' + context.todayKey + ').',
     'The day being edited is ' + shortLabel(context.editKey) + ' (' + context.editKey + '): ' + describeDay(context.day) + '.',
     'Weights are kilograms. "five by eight" means 5 sets of 8 reps. "at eighty" means 80 kg. A weight said without an exercise refers to the last exercise mentioned.',
@@ -489,6 +501,9 @@ export function applyCommand(days, context, command) {
   const args = argsOf(command);
   if (name === 'undo') return { ok: true, kind: 'undo' };
   if (name === 'finish') return { ok: true, kind: 'finish' };
+  if (name === 'not_a_change') {
+    return { ok: false, message: "That's not a plan change; try \"add squat, five sets of five at a hundred\"" };
+  }
   if (name === 'set_week') {
     const result = setWeek(days, context.todayKey, args.days);
     return result.ok ? Object.assign({ kind: 'change' }, result) : result;

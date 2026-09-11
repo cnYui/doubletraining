@@ -213,6 +213,9 @@ test('applyCommand routes model tool calls to the plan operations', () => {
 
   assert.equal(applyCommand(map, context, { name: 'undo', args: {} }).kind, 'undo');
   assert.equal(applyCommand(map, context, { name: 'finish' }).kind, 'finish');
+  const question = applyCommand(map, context, { name: 'not_a_change', args: { reason: 'question' } });
+  assert.equal(question.ok, false);
+  assert.match(question.message, /not a plan change/);
   assert.equal(applyCommand(map, context, { name: 'assign_day', args: { focus: 'legs' } }).ok, false);
   assert.equal(applyCommand(map, context, { name: 'teleport', args: {} }).ok, false);
   assert.equal(applyCommand(map, context, null).ok, false);
@@ -220,7 +223,7 @@ test('applyCommand routes model tool calls to the plan operations', () => {
 
 test('tool declarations and the system prompt describe the day being edited', () => {
   const names = PLAN_TOOLS.map((tool) => tool.function.name);
-  assert.deepEqual(names, ['set_week', 'assign_day', 'add_exercise', 'update_exercise', 'remove_exercise', 'adjust_weight', 'undo', 'finish']);
+  assert.deepEqual(names, ['set_week', 'assign_day', 'add_exercise', 'update_exercise', 'remove_exercise', 'adjust_weight', 'undo', 'not_a_change', 'finish']);
   for (const tool of PLAN_TOOLS) {
     assert.equal(tool.type, 'function');
     assert.equal(tool.function.parameters.type, 'object');
