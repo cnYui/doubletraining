@@ -9,6 +9,7 @@ import {
   isKey,
   keyFromClock,
   keyFromDayNumber,
+  normalizeOffsetMinutes,
   resolveDateInput,
   shortLabel,
   weekKeys,
@@ -43,6 +44,31 @@ test('keyFromClock applies the device UTC offset', () => {
   assert.equal(keyFromClock(now, 420), '2026-09-10');
   assert.equal(keyFromClock(now, Number.NaN), '2026-09-11');
   assert.equal(keyFromClock(now, undefined), '2026-09-11');
+});
+
+test('normalizeOffsetMinutes keeps real offsets and converts whole-minute seconds', () => {
+  assert.equal(normalizeOffsetMinutes(0), 0);
+  assert.equal(normalizeOffsetMinutes(-480), -480);
+  assert.equal(normalizeOffsetMinutes(-840), -840);
+  assert.equal(normalizeOffsetMinutes(720), 720);
+  assert.equal(normalizeOffsetMinutes(-28800), -480);
+  assert.equal(normalizeOffsetMinutes(-20700), -345);
+  assert.equal(normalizeOffsetMinutes(-50460), 0);
+  assert.equal(normalizeOffsetMinutes(-50401), 0);
+  assert.equal(normalizeOffsetMinutes(1e9), 0);
+  assert.equal(normalizeOffsetMinutes(Number.NaN), 0);
+  assert.equal(normalizeOffsetMinutes('-480'), 0);
+});
+
+test('keyFromClock survives an offset reported in seconds', () => {
+  // 12:23 on Sep 11 in UTC+8, when the chat card opened on Oct 1.
+  const noon = Date.UTC(2026, 8, 11, 4, 23);
+  assert.equal(keyFromClock(noon, -28800), '2026-09-11');
+  assert.equal(keyFromClock(noon, -480), '2026-09-11');
+  // 01:00 on Sep 11 in UTC+8 is still Sep 10 in UTC.
+  const night = Date.UTC(2026, 8, 10, 17, 0);
+  assert.equal(keyFromClock(night, -28800), '2026-09-11');
+  assert.equal(keyFromClock(night, 0), '2026-09-10');
 });
 
 test('isKey accepts only real calendar dates', () => {

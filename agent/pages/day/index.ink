@@ -178,8 +178,10 @@ export default {
     this._cursor = Math.max(0, firstOpenIndex(day));
     this._mode = baseMode(day);
     this._id = Math.random().toString(36).slice(2, 6);
+    let tz = 'n/a';
+    try { tz = new Date().getTimezoneOffset(); } catch (error) { tz = 'error'; }
     console.log('[doubletraining] day onLoad ' + this._id + ' query=' + JSON.stringify(query) +
-      ' mode=' + this._mode);
+      ' mode=' + this._mode + ' now=' + Date.now() + ' tz=' + tz + ' today=' + this._todayKey);
     this._render();
   },
 
