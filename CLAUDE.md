@@ -51,7 +51,7 @@ The rest countdown between sets is switched off at the user's request: `REST_TIM
 - **After "Enter", the effect preview keeps the `_current` target** at 480 × 352, so the compact layout is keyed to height (`@media (max-height: 240px)`), not to the target. In the 448 × 150 chat card that query matches.
 - **Inside `@media`, rules scoped under the page root did not apply**: in the chat card, `.shell .full-on` / `.shell .compact` never took effect while single-class rules in the same query did. Descendant selectors between ordinary views (`.day-sel .dnum`, `.row-focus .row-rx`) work. Keep media-query rules to plain classes.
 - Ink's `localStorage` lives neither in the browser's localStorage nor in IndexedDB, but it survives re-renders within one Studio session. Raising `SEED_VERSION` in `store.js` rewrites the example data.
-- **With the browser pane hidden the page stalls completely**: `visibilityState = hidden` and zero `requestAnimationFrame` frames, so a GitHub import sticks at the archive-unpacking step and the effect preview stops rendering. Keep the pane visible and the window in front while testing.
+- **With the browser pane hidden the page stalls completely**: `visibilityState = hidden` and zero `requestAnimationFrame` frames, so a GitHub import sticks at the archive-unpacking step and the effect preview stops rendering. Keep the pane visible and the window in front while testing. No tool can show a hidden pane; if the user can't, drive Studio in the user's Chrome instead (Claude in Chrome tools; the simulator's log panel there shows `console.log` lines, but the on-screen canvas is the reliable record).
 
 ## Chat card findings (2026-09-11)
 
@@ -62,6 +62,20 @@ Found while capturing the deck, then measured with a temporary probe build (lett
 - **Compact layout never switched on — fixed in code, not re-checked.** The height query matched; the `.shell …` rules inside it did not apply. They are plain class selectors now. The Browser pane was hidden before the fixed build could be imported, and the user chose to skip the Studio re-check.
 - A new `/debug` card starts with its own example plan (0 / 15 sets), so it apparently doesn't share `localStorage` with the effect-preview run.
 - The canvas in the effect preview never returns to its chat card on its own: the card's button stays disabled ("Entered"), and a simulator double tap doesn't bring it back. The card text says it returns "after going back to the desktop".
+
+## Voice probe findings (2026-09-11, Studio simulator, branch `probe-chat-card`)
+
+Measured with a throwaway `pages/probe/index` (kept on the `probe-chat-card` branch; import `tree/probe-chat-card/agent` to re-run it — it opens first in `app.json` there). Simulator facts, not device facts:
+
+- Globals present: `LanguageModel`, `SpeechRecognition`, `speechSynthesis`, `SpeechSynthesisUtterance`, `wx.speech` (`playTTS`, `startRecognition`). Missing: `SpeechRecognitionSession` (0.18), `MediaRecorder`, `navigator.mediaDevices`.
+- **In-page LLM with tool calls works.** `LanguageModel.availability()` → `available`; `create({ initialPrompts, tools })` → session; `session.addEventListener('toolcall', …)` delivers `functionName` + parsed `arguments` (`set_week {"days":[…7 enums…]}`, `add_exercise {"name":"Squat","sets":5,"reps":5,"kg":100}`, `update_day {"day":"wednesday","focus":"shoulders"}`). `prompt()` resolves with `""` or a short sentence after the calls. Latency 7–10 s per request; one request reached 36 s while others were queued.
+- **Tool results cannot be sent back** (the event has only `callId/functionName/arguments`), so a session re-emits earlier tool calls with later answers. Use one session per utterance and carry state in the Page, or dedupe by `callId`.
+- **In-page ASR works and the simulator's voice box feeds it**: `new SpeechRecognition()` + `start()` from a temple-tap handler (no user-gesture error) → `onstart` → `onresult` with the typed text (`confidence 1`, `isFinal true`) → `onend`. `stop()` works.
+- **`onVoiceWakeup` fires** when the simulator's microphone button is pressed: `event.keyword === "leqi"`. With `event.preventDefault()` + `SpeechRecognition.start()` inside the handler, the utterance goes to the Page and the host's "语音识别已唤醒" state is not entered; without it the host keeps its default. The simulator must be back in the idle state (取消唤醒) before the next wake registers.
+- `onTargetChanged(undefined → "_current")` fires on load in the effect preview.
+- `speechSynthesis.speak()` and `wx.speech.startRecognition()` run without errors; nothing audible in the simulator.
+- A simulated tap's `Enter` can arrive more than 1 s after the button press; wait ≥ 2 s before the next simulator action.
+- Studio in a real Chrome window works with the same flows (needs the account logged in there). The effect preview has an "AIUI Agent / 系统模拟" switch; in "AIUI Agent" mode the preview launches `app.json`'s first page, not the `/debug` card's page.
 
 ## Verified / not verified
 
