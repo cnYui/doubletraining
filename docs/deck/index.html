@@ -1,0 +1,792 @@
+<title>Double Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Deliberately single-theme: a slide deck is a fixed, projected object. */
+  :root {
+    color-scheme: light;
+    --desk: #d6ddd5;
+    --chalk: #eef1ec;
+    --chalk-2: #e1e7df;
+    --ink: #141b17;
+    --ink-2: #4c5851;
+    --ink-3: #78847c;
+    --rule: #c8d1c8;
+    --plate: #1f6b45;
+    --plate-2: #dcebdf;
+    --lens: #030504;
+    --bezel: #18201b;
+    --g: #40ff5e;
+    --display: "Chakra Petch", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-snap-type: y proximity; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, p { margin: 0; }
+  h1, h2, h3 { text-wrap: balance; }
+  code, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .deck {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    padding: 32px 20px 104px;
+  }
+  .slide {
+    position: relative;
+    width: min(1280px, 100%);
+    aspect-ratio: 16 / 9;
+    background: var(--chalk);
+    border-radius: 4px;
+    overflow: hidden;
+    container-type: inline-size;
+    scroll-snap-align: center;
+    box-shadow: 0 1px 2px rgba(20, 27, 23, .08), 0 22px 50px -30px rgba(20, 27, 23, .5);
+  }
+  .inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 3.6cqw 4.8cqw 3.4cqw;
+  }
+  .rail {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 1.1cqw;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: .98cqw;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .rail b { font-weight: 500; color: var(--plate); }
+  h2 {
+    margin-top: 2.2cqw;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 3.4cqw;
+    line-height: 1.06;
+    letter-spacing: -.005em;
+  }
+  .lede {
+    max-width: 60ch;
+    margin-top: 1cqw;
+    font-size: 1.42cqw;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    gap: 2.6cqw;
+    margin-top: 2cqw;
+  }
+  .notes {
+    display: flex;
+    flex-direction: column;
+    gap: 1.3cqw;
+    font-size: 1.28cqw;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .notes b { font-weight: 600; color: var(--ink); }
+  .notes code, .lede code, .cell code, .issue code {
+    font-size: .92em;
+    padding: .08em .32em;
+    border-radius: 3px;
+    background: var(--chalk-2);
+    color: var(--ink);
+  }
+
+  /* Glasses screen: the product's own monochrome-green world lives only here. */
+  .lens { margin: 0; display: flex; flex-direction: column; gap: .8cqw; flex-shrink: 0; }
+  .screen {
+    padding: .45cqw;
+    border-radius: 1.1cqw;
+    background: var(--lens);
+    box-shadow: 0 0 0 1px var(--bezel), 0 1.6cqw 2.6cqw -1.8cqw rgba(0, 0, 0, .6);
+  }
+  .screen img, .screen svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: .65cqw;
+  }
+  .screen img { aspect-ratio: 538 / 394; }
+  .screen.card img { aspect-ratio: 502 / 168; }
+  .lens figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1cqw;
+    font-family: var(--mono);
+    font-size: .92cqw;
+    color: var(--ink-3);
+  }
+  .lens figcaption b { font-weight: 500; color: var(--ink); }
+  .tag {
+    flex-shrink: 0;
+    padding: .12cqw .5cqw;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    font-size: .78cqw;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .tag-live { color: var(--plate); }
+  .tag-render { color: #9a5b12; }
+
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5cqw;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: .92cqw;
+    letter-spacing: .06em;
+    color: var(--plate);
+    text-transform: uppercase;
+  }
+  .arrow::after {
+    content: "";
+    width: 4.6cqw;
+    height: 1px;
+    background: var(--plate);
+    box-shadow: 0 0 0 0 transparent;
+    mask: linear-gradient(90deg, #000 0 100%);
+  }
+  .arrow i {
+    font-style: normal;
+    font-family: var(--sans);
+    font-size: 1.6cqw;
+    line-height: 1;
+  }
+
+  /* 1: title */
+  .title-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 45cqw;
+    align-items: center;
+    gap: 4cqw;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 1.05cqw;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--plate);
+  }
+  h1 {
+    margin-top: 1.4cqw;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 6.6cqw;
+    line-height: .95;
+    letter-spacing: -.012em;
+  }
+  .title-lede {
+    max-width: 30ch;
+    margin-top: 2cqw;
+    font-size: 1.7cqw;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .specs {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .55cqw 1.6cqw;
+    margin-top: 3cqw;
+    font-family: var(--mono);
+    font-size: 1cqw;
+  }
+  .specs dt { color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; }
+  .specs dd { margin: 0; color: var(--ink); }
+  .dim { position: relative; padding: 2.4cqw 0 0 2.6cqw; }
+  .dim .dx, .dim .dy { position: absolute; background: var(--ink-3); }
+  .dim .dx { top: .9cqw; left: 2.6cqw; right: 0; height: 1px; }
+  .dim .dy { top: 2.4cqw; bottom: 2.3cqw; left: .9cqw; width: 1px; }
+  .dim .dx span, .dim .dy span {
+    position: absolute;
+    padding: 0 .6cqw;
+    background: var(--chalk);
+    font-family: var(--mono);
+    font-size: .9cqw;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .dim .dx span { left: 50%; top: 0; transform: translate(-50%, -52%); }
+  .dim .dy span { top: 50%; left: 0; transform: translate(-50%, -50%) rotate(-90deg); }
+
+  /* 2: four reasons */
+  .reasons {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2.4cqw;
+    align-content: center;
+    margin-top: 2cqw;
+  }
+  .reason { display: flex; flex-direction: column; gap: 1cqw; padding-top: 1.2cqw; border-top: 2px solid var(--ink); }
+  .reason .num { font-family: var(--mono); font-size: .95cqw; letter-spacing: .12em; color: var(--plate); }
+  .reason h3 { font-family: var(--display); font-weight: 600; font-size: 1.9cqw; line-height: 1.1; }
+  .reason p { font-size: 1.22cqw; line-height: 1.5; color: var(--ink-2); }
+  .reason .quote {
+    margin-top: .4cqw;
+    padding: .7cqw .9cqw;
+    border-left: 2px solid var(--plate);
+    background: var(--plate-2);
+    font-family: var(--mono);
+    font-size: 1cqw;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+
+  /* box legend */
+  .legend { display: flex; flex-direction: column; gap: .9cqw; }
+  .legend-row { display: flex; align-items: center; gap: 1cqw; font-size: 1.15cqw; color: var(--ink-2); }
+  .legend-row .sw {
+    width: 1.5cqw;
+    height: 1.5cqw;
+    flex-shrink: 0;
+    border-radius: .25cqw;
+    background: var(--lens);
+    box-shadow: 0 0 0 .3cqw var(--lens);
+  }
+  .sw.todo { border: 1px solid rgba(64, 255, 94, .3); }
+  .sw.next { border: 2px solid var(--g); background: #0a2a10; }
+  .sw.done { border: 1px solid rgba(64, 255, 94, .72); background: rgba(64, 255, 94, .72); }
+
+  /* 6: volume */
+  .volume { display: flex; flex-direction: column; gap: 1.2cqw; }
+  .big {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 5.6cqw;
+    line-height: 1;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .big small { font-size: .42em; color: var(--ink-2); margin-left: .3em; }
+  .calc {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: .35cqw 1.8cqw;
+    font-family: var(--mono);
+    font-size: 1.05cqw;
+    color: var(--ink-2);
+  }
+  .calc span:nth-child(3n) { text-align: right; color: var(--ink); }
+  .calc .sum { padding-top: .5cqw; border-top: 1px solid var(--rule); color: var(--ink); font-weight: 500; }
+  .compare {
+    padding: .9cqw 1.1cqw;
+    border-left: 2px solid var(--plate);
+    background: var(--plate-2);
+    font-size: 1.2cqw;
+    line-height: 1.45;
+  }
+
+  /* 8: chat-card issues */
+  .issues { flex: 1; display: flex; flex-direction: column; gap: 1.8cqw; }
+  .issue {
+    display: flex;
+    flex-direction: column;
+    gap: .6cqw;
+    padding-top: 1cqw;
+    border-top: 2px solid #9a5b12;
+    font-size: 1.2cqw;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .issue .sym { font-family: var(--display); font-weight: 600; font-size: 1.75cqw; line-height: 1.15; color: var(--ink); }
+  .issue b { font-weight: 600; color: var(--ink); }
+  .issue .next { color: var(--ink); }
+  .issue .next::before { content: "Next  "; font-family: var(--mono); font-size: .86em; letter-spacing: .08em; color: #9a5b12; }
+
+  /* 9: key table */
+  .keys { width: 100%; border-collapse: collapse; font-size: 1.2cqw; }
+  .keys th {
+    padding: 0 1cqw .8cqw 0;
+    border-bottom: 1px solid var(--ink);
+    font-family: var(--mono);
+    font-size: .9cqw;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .keys td { padding: 1cqw 1cqw 1cqw 0; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--ink-2); }
+  .keys td:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .keys td.k { font-family: var(--mono); color: var(--ink); white-space: nowrap; }
+  .keys tr.gap td { color: #9a5b12; }
+
+  /* 10: findings */
+  .findings {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2cqw 2.6cqw;
+    align-content: center;
+    margin-top: 1.6cqw;
+  }
+  .cell { display: flex; flex-direction: column; gap: .7cqw; padding-top: 1cqw; border-top: 1px solid var(--rule); }
+  .cell .sym { font-size: 1.22cqw; font-weight: 600; line-height: 1.35; }
+  .cell .fix { font-size: 1.12cqw; line-height: 1.45; color: var(--ink-2); }
+  .cell .fix::before { content: "Fix  "; font-family: var(--mono); font-size: .86em; letter-spacing: .08em; color: var(--plate); }
+
+  /* 11: status */
+  .status { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw; margin-top: 2cqw; }
+  .col h3 {
+    padding-bottom: .7cqw;
+    border-bottom: 2px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 1cqw;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .col.todo h3 { border-color: #9a5b12; color: #9a5b12; }
+  .col ul { margin: 1.1cqw 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .75cqw; }
+  .col li { font-size: 1.18cqw; line-height: 1.4; color: var(--ink-2); padding-left: 1.5cqw; position: relative; }
+  .col li::before { content: ""; position: absolute; left: 0; top: .55em; width: .6cqw; height: .6cqw; border-radius: 1px; background: var(--plate); }
+  .col.todo li::before { background: transparent; border: 1px solid #9a5b12; }
+  .gate {
+    margin-top: 1.8cqw;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6cqw 2.4cqw;
+    padding: .9cqw 1.2cqw;
+    background: var(--ink);
+    color: var(--chalk);
+    font-family: var(--mono);
+    font-size: 1.02cqw;
+    letter-spacing: .04em;
+  }
+  .gate b { color: #f3c178; font-weight: 500; }
+
+  /* 12: close */
+  .close-grid { flex: 1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 4cqw; align-items: center; }
+  .block {
+    padding: 1.2cqw 1.4cqw;
+    background: var(--ink);
+    border-radius: 3px;
+    color: var(--chalk);
+    font-family: var(--mono);
+    font-size: 1.15cqw;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .block .c { color: #8fa598; }
+  .steps { display: flex; flex-direction: column; gap: 1.4cqw; }
+  .step { display: grid; grid-template-columns: 3.2cqw 1fr; gap: 1cqw; align-items: baseline; }
+  .step .n { font-family: var(--display); font-weight: 600; font-size: 2.2cqw; color: var(--plate); }
+  .step p { font-size: 1.3cqw; line-height: 1.45; color: var(--ink-2); }
+  .step b { color: var(--ink); }
+
+  /* counter + keyboard hint */
+  .counter {
+    position: fixed;
+    right: 18px;
+    bottom: 16px;
+    padding: 6px 10px;
+    border-radius: 3px;
+    background: rgba(20, 27, 23, .86);
+    color: var(--chalk);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+  }
+  .counter span { color: #8fa598; }
+
+  @media print {
+    body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .slide { width: 100%; border-radius: 0; box-shadow: none; break-after: page; }
+    .counter { display: none; }
+  }
+</style>
+
+<main class="deck">
+
+  <!-- 1 -->
+  <section class="slide" id="s1" aria-label="Title">
+    <div class="inner">
+      <div class="rail"><span><b>Double Training</b> · product review</span><span>2026-09-11 · 01 / 12</span></div>
+      <div class="title-grid">
+        <div>
+          <p class="kicker">Rokid Glasses · AIUI agent</p>
+          <h1>Double Training</h1>
+          <p class="title-lede">A workout check-in book you wear. Pick the day, tap the temple once per set, and see what changed since last time — no phone in hand.</p>
+          <dl class="specs">
+            <dt>Runtime</dt><dd>AIUI 0.17.0 · two Pages</dd>
+            <dt>Display</dt><dd>480 × 352 · monochrome green</dd>
+            <dt>Input</dt><dd>temple tap &amp; swipe · voice to open</dd>
+            <dt>Source</dt><dd>github.com/cnYui/doubletraining</dd>
+          </dl>
+        </div>
+        <div class="dim">
+          <div class="dx"><span>480 px</span></div>
+          <div class="dy"><span>352 px</span></div>
+          <figure class="lens">
+            <div class="screen"><img src="shots/01-dates-today.png" alt="Training calendar on the glasses: Friday September 11 selected, Chest, 5 exercises and 15 sets, marked Today"></div>
+            <figcaption><b>Training calendar</b><span class="tag tag-live">Studio capture</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" id="s2" aria-label="Why glasses">
+    <div class="inner">
+      <div class="rail"><span><b>Why</b> · the gap it fills</span><span>02 / 12</span></div>
+      <h2>Hands on the bar, eyes free</h2>
+      <p class="lede">The glasses already answer questions by voice. What they can't do is remember your training — so this agent only does the things a general assistant structurally can't.</p>
+      <div class="reasons">
+        <div class="reason">
+          <span class="num">MEMORY</span>
+          <h3>It keeps every set</h3>
+          <p>Each tap is stored on the glasses, so the next session starts from real numbers.</p>
+        </div>
+        <div class="reason">
+          <span class="num">STRUCTURE</span>
+          <h3>Boxes, not paragraphs</h3>
+          <p>On a 480 × 352 green screen, a sentence is the worst carrier. Set boxes and a progress rail read at a glance.</p>
+        </div>
+        <div class="reason">
+          <span class="num">SILENT INPUT</span>
+          <h3>One finger, no talking</h3>
+          <p>Logging needs no voice between sets — just the temple touchpad.</p>
+        </div>
+        <div class="reason">
+          <span class="num">YOUR HISTORY</span>
+          <h3>Answers only your data can give</h3>
+          <p class="quote">vs Sep 4 · Bench Press +2.5 kg</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" id="s3" aria-label="The flow">
+    <div class="inner">
+      <div class="rail"><span><b>How it works</b> · two Pages</span><span>03 / 12</span></div>
+      <h2>Calendar, day, done — one gesture per step</h2>
+      <p class="lede">Voice opens either Page with a date (<code>start today's workout</code> → day plan, <code>{ "date": "today" }</code>); after that, everything happens on the temple.</p>
+      <div class="body">
+        <figure class="lens" style="width: 25cqw">
+          <div class="screen"><img src="shots/01-dates-today.png" alt="Training calendar"></div>
+          <figcaption><b>pages/dates</b><span>pick a day</span></figcaption>
+        </figure>
+        <div class="arrow"><i>→</i>tap</div>
+        <figure class="lens" style="width: 25cqw">
+          <div class="screen"><img src="shots/04-day-ticked.png" alt="Day plan with three Bench Press sets ticked"></div>
+          <figcaption><b>pages/day</b><span>tap per set</span></figcaption>
+        </figure>
+        <div class="arrow"><i>→</i>last set</div>
+        <figure class="lens" style="width: 25cqw">
+          <div class="screen"><img src="shots/06-day-done.png" alt="Workout summary"></div>
+          <figcaption><b>summary</b><span>compare</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" id="s4" aria-label="Pick a date">
+    <div class="inner">
+      <div class="rail"><span><b>Pick a date</b> · the wheel</span><span>04 / 12</span></div>
+      <h2>A date wheel instead of a month grid</h2>
+      <p class="lede">A full calendar is unreadable at 480 × 352, so the selected day is enlarged with two neighbours on each side.</p>
+      <div class="body">
+        <figure class="lens" style="width: 31cqw">
+          <div class="screen"><img src="shots/01-dates-today.png" alt="Friday September 11 selected"></div>
+          <figcaption><b>Today, Fri 11 · Chest</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="arrow"><i>↑</i>swipe fwd</div>
+        <figure class="lens" style="width: 31cqw">
+          <div class="screen"><img src="shots/02-dates-thu.png" alt="Thursday September 10 selected, Back, 12 of 14 sets"></div>
+          <figcaption><b>Thu 10 · 12 / 14 sets</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="notes" style="flex: 1">
+          <p><b>Swipe forward</b> goes to the previous day, <b>swipe back</b> to the next, <b>tap</b> opens it.</p>
+          <p>Every row carries its focus and state: <code>Done</code>, <code>12 / 14 sets</code>, <code>Rest day</code>, <code>Not planned</code>.</p>
+          <p><code>Week 2 / 5</code> counts planned training days Monday to Sunday. Range: 60 days each way.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" id="s5" aria-label="Check off sets">
+    <div class="inner">
+      <div class="rail"><span><b>Check off sets</b> · day plan</span><span>05 / 12</span></div>
+      <h2>One tap is one set</h2>
+      <p class="lede">A tap logs the planned weight × reps and ticks the next box. When an exercise is finished, focus jumps to the next open one.</p>
+      <div class="body">
+        <figure class="lens" style="width: 31cqw">
+          <div class="screen"><img src="shots/03-day-start.png" alt="Chest day before any set, 0 of 15 sets"></div>
+          <figcaption><b>0 / 15 sets</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="arrow"><i>→</i>3 taps</div>
+        <figure class="lens" style="width: 31cqw">
+          <div class="screen"><img src="shots/04-day-ticked.png" alt="Three Bench Press boxes filled"></div>
+          <figcaption><b>3 / 15 sets</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="notes" style="flex: 1">
+          <div class="legend">
+            <div class="legend-row"><span class="sw todo"></span>To do — thin outline</div>
+            <div class="legend-row"><span class="sw next"></span>Next set — bright double line</div>
+            <div class="legend-row"><span class="sw done"></span>Done — filled</div>
+          </div>
+          <p>State is carried by <b>shape</b> as well as brightness, as the monochrome design system asks.</p>
+          <p>Swipes move between exercises; a cardio item (<code>Swim 30 min</code>) is marked done with one tap.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" id="s6" aria-label="Summary">
+    <div class="inner">
+      <div class="rail"><span><b>Summary</b> · after the last item</span><span>06 / 12</span></div>
+      <h2>What changed since last time</h2>
+      <div class="body">
+        <figure class="lens" style="width: 40cqw">
+          <div class="screen"><img src="shots/06-day-done.png" alt="Workout summary: sets, volume, time, cardio, and comparison with September 4"></div>
+          <figcaption><b>Workout done · Chest</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="volume" style="flex: 1">
+          <div class="big">6,580<small>kg volume</small></div>
+          <div class="calc">
+            <span>Bench Press</span><span>5 × 8 × 80</span><span>3,200</span>
+            <span>Incline DB Press</span><span>4 × 10 × 26</span><span>1,040</span>
+            <span>Pec Deck</span><span>3 × 12 × 45</span><span>1,620</span>
+            <span>Cable Crossover</span><span>3 × 12 × 20</span><span>720</span>
+            <span class="sum">Σ sets × reps × kg</span><span class="sum"></span><span class="sum">6,580</span>
+          </div>
+          <p class="compare">The last Chest day (Sep 4) is read from the glasses, so the Page can say <b>Bench Press +2.5 kg</b> and <b>Pec Deck +5 kg</b> — something a general assistant can't know.</p>
+          <div class="notes"><p><code>TIME</code> runs from the first logged set to the last: 13 min here, because the demo paused mid-workout to capture the chat card.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" id="s7" aria-label="Rest timer">
+    <div class="inner">
+      <div class="rail"><span><b>Rest timer</b> · built, parked</span><span>07 / 12</span></div>
+      <h2>A rest countdown between sets</h2>
+      <p class="lede">Implemented and tested earlier in Studio, then switched off at the product owner's request so a tap only ticks the box. One flag brings it back: <code>REST_TIMER_ENABLED = true</code>.</p>
+      <div class="body">
+        <figure class="lens" style="width: 40cqw">
+          <div class="screen">
+            <svg viewBox="0 0 480 352" role="img" aria-label="Design render of the rest screen: 01:12 of 02:00, next set Bench Press set 2 at 80 kg for 8 reps">
+              <rect width="480" height="352" fill="#000"/>
+              <g font-family="IBM Plex Sans, Segoe UI, sans-serif">
+                <text x="16" y="27" font-size="11" font-weight="500" letter-spacing=".9" fill="rgba(64,255,94,.72)">REST</text>
+                <text x="464" y="27" font-size="10" text-anchor="end" fill="rgba(64,255,94,.48)">Logged · Bench Press set 1 · 80 kg × 8</text>
+                <text x="16" y="104" font-size="56" font-weight="500" letter-spacing="1" fill="#40ff5e">01:12</text>
+                <text x="180" y="98" font-size="13" fill="rgba(64,255,94,.48)">/ 02:00</text>
+                <rect x="16" y="130" width="448" height="1" fill="rgba(64,255,94,.24)"/>
+                <rect x="16" y="130" width="179" height="1" fill="rgba(64,255,94,.72)"/>
+                <rect x="193" y="129" width="3" height="3" fill="#40ff5e"/>
+                <text x="16" y="164" font-size="11" letter-spacing=".9" fill="rgba(64,255,94,.48)">NEXT</text>
+                <text x="58" y="164" font-size="14" fill="rgba(64,255,94,.72)">Bench Press · set 2</text>
+                <text x="202" y="164" font-size="14" font-weight="500" fill="#40ff5e">80 kg × 8</text>
+                <text x="16" y="186" font-size="11" fill="rgba(64,255,94,.48)">Swipe forward +2.5 kg · back -2.5 kg</text>
+                <text x="16" y="336" font-size="10" letter-spacing=".5"><tspan fill="rgba(64,255,94,.72)">Tap</tspan><tspan fill="rgba(64,255,94,.48)"> skip rest · </tspan><tspan fill="rgba(64,255,94,.72)">Double-tap</tspan><tspan fill="rgba(64,255,94,.48)"> undo set · </tspan><tspan fill="rgba(64,255,94,.72)">Swipe</tspan><tspan fill="rgba(64,255,94,.48)"> adjust weight</tspan></text>
+              </g>
+            </svg>
+          </div>
+          <figcaption><b>Rest · 48 s of 120 s</b><span class="tag tag-render">Design render</span></figcaption>
+        </figure>
+        <div class="notes" style="flex: 1">
+          <p><b>Per-exercise rest</b>: 120 s for compound lifts, 60–90 s for isolation.</p>
+          <p><b>Swipe</b> to change the next set's weight by one plate step (2.5 kg barbell, 2 kg dumbbell) — the moment you know it was too light.</p>
+          <p><b>Tap</b> or <b>nod</b> skips rest; <b>double tap</b> undoes the set just logged. Nod is only listened for while resting, so a nod under the bar can't log anything.</p>
+          <p>The countdown survives the Page being hidden: it tracks a deadline, not a ticking counter.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" id="s8" aria-label="Chat card">
+    <div class="inner">
+      <div class="rail"><span><b>Chat card</b> · open issues</span><span>08 / 12</span></div>
+      <h2>The chat card caught two bugs</h2>
+      <p class="lede">Studio can also run a Page inside the conversation as a 448 × 150 card. Capturing it for this deck exposed two problems the full-size preview hides.</p>
+      <div class="body" style="align-items: flex-start">
+        <figure class="lens" style="width: 44cqw">
+          <div class="screen card"><img src="shots/07-card.png" alt="Chat card showing the top of the full day layout, dated Thursday October 1, 0 of 15 sets"></div>
+          <figcaption><b>Chat card · 448 × 150</b><span class="tag tag-live">Studio capture</span></figcaption>
+        </figure>
+        <div class="issues">
+          <div class="issue">
+            <p class="sym">The compact layout never switched on</p>
+            <p>The Page drew the top of its full layout. The <code>max-height: 240px</code> rule that should collapse it to the current exercise did not match inside the card.</p>
+            <p class="next">Find a size signal the card reports reliably, then check on the glasses.</p>
+          </div>
+          <div class="issue">
+            <p class="sym">The date ran 20 days ahead</p>
+            <p>On Fri, Sep 11 the card opened <b>Thu, Oct 1</b>. 28,800 minutes is exactly 20 days, and −28,800 is UTC+8 counted in seconds, so this host most likely reports the timezone offset in seconds while <code>todayKey()</code> expects minutes.</p>
+            <p class="next">Ignore offsets beyond ±14 hours.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" id="s9" aria-label="Temple input">
+    <div class="inner">
+      <div class="rail"><span><b>Input</b> · measured, not assumed</span><span>09 / 12</span></div>
+      <h2>What the temple actually sends</h2>
+      <p class="lede">Recorded from the Page's own key logs in the AIUI Studio 1.1.0 glasses simulator.</p>
+      <div class="body" style="align-items: flex-start">
+        <table class="keys" style="flex: 1.4">
+          <thead><tr><th>Gesture</th><th>Keys the Page receives</th><th>Double Training</th></tr></thead>
+          <tbody>
+            <tr><td>Tap</td><td class="k">GlobalHook → Enter</td><td>Open the day · log a set · mark cardio done</td></tr>
+            <tr><td>Swipe forward</td><td class="k">GlobalHook → ArrowUp</td><td>Previous day · previous exercise</td></tr>
+            <tr><td>Swipe back</td><td class="k">GlobalHook → ArrowDown</td><td>Next day · next exercise</td></tr>
+            <tr class="gap"><td>Double tap</td><td class="k">— nothing reaches the Page</td><td>Designed as "back to calendar"; untestable in the simulator</td></tr>
+          </tbody>
+        </table>
+        <div class="notes" style="flex: 1">
+          <p><b>GlobalHook arrives before every gesture.</b> Treating it as a tap would fire twice per touch, so the Pages act on gesture keys only.</p>
+          <p>A <b>lone</b> GlobalHook — what real glasses may send — becomes one tap after 280 ms; one that echoes a gesture key within 450 ms is ignored.</p>
+          <p>Key order on physical glasses is still to be confirmed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" id="s10" aria-label="Runtime findings">
+    <div class="inner">
+      <div class="rail"><span><b>Engineering</b> · what the simulator taught us</span><span>10 / 12</span></div>
+      <h2>Six runtime surprises, all handled in code</h2>
+      <div class="findings">
+        <div class="cell"><p class="sym"><code>new Date(y, m, d)</code> drifted by weeks to a month between calls</p><p class="fix">Integer day numbers since 1970-01-01; "today" only from <code>Date.now()</code>.</p></div>
+        <div class="cell"><p class="sym">Loop variable unbound on the element carrying <code>ink:for</code></p><p class="fix">Every loop is a <code>&lt;block ink:for&gt;</code> around the real element.</p></div>
+        <div class="cell"><p class="sym">Rows vanished when an <code>ink:if</code> panel was re-created</p><p class="fix">All panels stay mounted; a data-bound class shows one.</p></div>
+        <div class="cell"><p class="sym">A dynamic class on the <code>&lt;page&gt;</code> root was ignored — black screen</p><p class="fix">Static root class; dynamic classes on ordinary views.</p></div>
+        <div class="cell"><p class="sym">Full-size preview still reports the <code>_current</code> target</p><p class="fix">Compact layout keyed to <code>max-height: 240px</code>.</p></div>
+        <div class="cell"><p class="sym">A hidden browser pane renders zero frames and stalls imports</p><p class="fix">Keep Studio visible while testing; captures taken live.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" id="s11" aria-label="Status">
+    <div class="inner">
+      <div class="rail"><span><b>Status</b> · honest ledger</span><span>11 / 12</span></div>
+      <h2>Where it stands</h2>
+      <div class="status">
+        <div class="col">
+          <h3>Seen working in the Studio simulator</h3>
+          <ul>
+            <li>GitHub import and in-place re-import of <code>agent/</code></li>
+            <li>Date wheel, week counter, one-day swipes, tap to open</li>
+            <li>Tap-to-tick sets, auto-advance, cardio completion</li>
+            <li>Workout summary with volume and last-session comparison</li>
+            <li>Full 480 × 352 layout in the effect preview</li>
+            <li>27 unit tests passing; strict project validation clean</li>
+          </ul>
+        </div>
+        <div class="col todo">
+          <h3>Open issues and not verified yet</h3>
+          <ul>
+            <li>Chat card: compact layout doesn't switch on; date runs 20 days ahead</li>
+            <li>Anything on physical Rokid Glasses: optics, key order, nod</li>
+            <li>Double tap as Back (never reaches Pages in the simulator)</li>
+            <li>Voice routing with a <code>date</code> slot (needs build &amp; review)</li>
+            <li>Voice logging such as "log 80 kg for 6 reps" — not built</li>
+            <li>Rest timer in the current build — switched off</li>
+          </ul>
+        </div>
+      </div>
+      <p class="gate"><span>Release audit · 83 rows</span><span>0 PASS</span><b>83 BLOCKED</b><span>Release-ready: NO — no signed device evidence yet</span></p>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" id="s12" aria-label="Try it">
+    <div class="inner">
+      <div class="rail"><span><b>Next</b> · try it and take it further</span><span>12 / 12</span></div>
+      <div class="close-grid">
+        <div>
+          <h2 style="margin-top: 0">Try it in AIUI Studio</h2>
+          <p class="lede">New Agent → GitHub Import, then <code>/debug</code> and Enter to open the glasses preview.</p>
+          <div class="block" style="margin-top: 2cqw">
+            <span class="c"># import this directory</span><br>
+            github.com/cnYui/doubletraining/tree/main/agent<br>
+            <span class="c"># run the logic tests</span><br>
+            npm test&nbsp;&nbsp;<span class="c">→ 27 passing</span>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="n">1</span><p><b>Fix the chat-card bugs.</b> Guard the timezone offset; find a compact-layout trigger that works in the card.</p></div>
+          <div class="step"><span class="n">2</span><p><b>Physical glasses run.</b> Confirm key order, double tap as Back, readability in a bright gym.</p></div>
+          <div class="step"><span class="n">3</span><p><b>Build &amp; review in Studio</b> so voice can open a day by date.</p></div>
+          <div class="step"><span class="n">4</span><p><b>Voice logging</b> for off-plan sets ("only 6 reps"), then bring back the rest timer.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="counter" aria-live="polite"><span>SLIDE</span> <b id="count">01</b> / 12 · ← →</div>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var counter = document.getElementById('count');
+    var current = 0;
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function go(index) {
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      slides[current].scrollIntoView({ block: 'center' });
+    }
+    document.addEventListener('keydown', function (event) {
+      if (event.target && /input|textarea|select/i.test(event.target.tagName)) return;
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].indexOf(event.key) !== -1) { event.preventDefault(); go(current + 1); }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].indexOf(event.key) !== -1) { event.preventDefault(); go(current - 1); }
+      if (event.key === 'Home') { event.preventDefault(); go(0); }
+      if (event.key === 'End') { event.preventDefault(); go(slides.length - 1); }
+    });
+    if ('IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+            current = slides.indexOf(entry.target);
+            counter.textContent = pad(current + 1);
+          }
+        });
+      }, { threshold: [0.55] });
+      slides.forEach(function (slide) { observer.observe(slide); });
+    }
+  })();
+</script>

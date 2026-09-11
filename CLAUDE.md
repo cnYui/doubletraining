@@ -42,20 +42,27 @@ The rest countdown between sets is switched off at the user's request: `REST_TIM
 
 ## Studio runtime pitfalls (all worked around in code — don't undo them)
 
-- The runtime is QuickJS with **time zone UTC (`getTimezoneOffset()` = 0)**.
+- The runtime is QuickJS; the effect-preview run reports **time zone UTC (`getTimezoneOffset()` = 0)** (a chat-card run behaves differently; see Open bugs).
 - **`new Date(y, m, d)` and `setDate()` are unreliable**: the same code returned different results on consecutive calls, and the example plan was once written a month early. All date math uses integer days since 1970-01-01; "today" comes only from `Date.now()` and the UTC offset.
 - **The loop variable is not resolved in attributes of the element that carries `ink:for`** (log: `Template variable 'row.tone' is missing`). Always loop with `<block ink:for ... ink:for-item="x">` wrapped around the inner element.
 - **`ink:for` rows inside an `ink:if` block that is destroyed and re-created do not render again** (exercise rows vanished after returning from rest). The day Page keeps its panels mounted; each panel binds its own data-driven `full-on` class.
 - **A dynamic class on the `<page>` root is not applied** (`mode-*` in `<page class="shell mode-{{mode}}">` never applied, so the day Page went black). Use only static classes on the root; put dynamic classes on ordinary `view` elements (proven on calendar rows and hints).
-- **After "Enter", the effect preview keeps the `_current` target** at 480 × 352. The compact layout switches on height (`@media (max-height: 240px)`), not on target. The inline card measured 448 × 150.
+- **After "Enter", the effect preview keeps the `_current` target** at 480 × 352, so the compact layout is keyed to height (`@media (max-height: 240px)`), not to the target. The inline card measured 448 × 150, but the compact layout did not switch on there either (see Open bugs).
 - Ink's `localStorage` lives neither in the browser's localStorage nor in IndexedDB, but it survives re-renders within one Studio session. Raising `SEED_VERSION` in `store.js` rewrites the example data.
 - **With the browser pane hidden the page stalls completely**: `visibilityState = hidden` and zero `requestAnimationFrame` frames, so a GitHub import sticks at the archive-unpacking step and the effect preview stops rendering. Keep the pane visible and the window in front while testing.
 
+## Open bugs (found 2026-09-11 while capturing the deck)
+
+- **The chat card doesn't use the compact layout.** A fresh `/debug` card (446 × 150 CSS px, canvas 502 × 168) drew the top of the full day layout; `@media (max-height: 240px)` never matched there. The compact layout has not been seen working anywhere yet.
+- **The chat card's date runs 20 days ahead.** On Fri, Sep 11 the card opened Thu, Oct 1. 28,800 minutes is exactly 20 days and −28,800 is UTC+8 in seconds, so that host most likely returns `getTimezoneOffset()` in seconds while the effect-preview run returns 0. `todayKey()` in `lib/dates.js` trusts the value; it should ignore offsets beyond ±14 h (840 minutes).
+- The same card started from a fresh example plan (0 / 15 sets), so a new `/debug` run apparently does not share `localStorage` with the effect-preview run.
+- The canvas in the effect preview never returns to its chat card on its own: the card's button stays disabled ("Entered"), and a simulator double tap doesn't bring it back. The card text says it returns "after going back to the desktop".
+
 ## Verified / not verified
 
-**Verified in the simulator (2026-09-11):** import and re-import; the calendar renders five rows and the week counter, swipes move one day at a time, and a tap opens the day with `wx.navigateTo`; the day list renders; a tap logs a set (with the rest screen, before it was switched off); swiping during rest adjusted the next set's weight; swiping to cardio and tapping marked it done; the day Page no longer goes black after navigation.
+**Verified in the simulator (2026-09-11):** import and re-import; the calendar renders five rows and the week counter, swipes move one day at a time, and a tap opens the day with `wx.navigateTo`; the day list renders; a tap logs a set (with the rest screen, before it was switched off); swiping during rest adjusted the next set's weight; swiping to cardio and tapping marked it done; the day Page no longer goes black after navigation. After the English conversion (765f5a6): English text fits the 480 × 352 layout on both Pages; tap-to-tick without the rest screen (0 → 3 → 15 / 15 sets, focus advances to the next open exercise); the done state (15 sets, 6,580 kg, cardio 30 min, `vs Sep 4 · Bench Press +2.5 kg · Incline DB Press same · Pec Deck +5 kg`). Screenshots are in `docs/deck/shots/`.
 
-**Not verified / open:** tap-to-tick without the rest screen (just changed); English UI text on the 480 × 352 layout; whether a covered calendar Page still receives keys (a visibility guard was added); the done state; voice routing and the `date` slot (draft agents don't register the schema); nod; everything on physical glasses. Simulator results are not device results; the Skill's release gates need signed device evidence.
+**Not verified / open:** the chat-card bugs above; whether a covered calendar Page still receives keys (a visibility guard was added); voice routing and the `date` slot (draft agents don't register the schema); nod; everything on physical glasses. Simulator results are not device results; the Skill's release gates need signed device evidence.
 
 ## Other
 
