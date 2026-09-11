@@ -120,6 +120,10 @@ function restPercent(remaining, total) {
 export default {
   data: {
     mode: 'list',
+    panelList: 'full-on',
+    panelRest: '',
+    panelDone: '',
+    panelEmpty: '',
     title: '',
     dateText: '',
     progressText: '',
@@ -479,6 +483,10 @@ export default {
     const hasPlan = Boolean(day && !day.rest && day.items.length);
     const patch = {
       mode: this._mode,
+      panelList: this._mode === 'list' ? 'full-on' : '',
+      panelRest: this._mode === 'rest' ? 'full-on' : '',
+      panelDone: this._mode === 'done' ? 'full-on' : '',
+      panelEmpty: this._mode === 'empty' || this._mode === 'restday' ? 'full-on' : '',
       title: shortLabel(this._dateKey) + (hasPlan ? ' · ' + day.focus : ''),
       dateText: shortLabel(this._dateKey),
       notice: this._notice ||
@@ -599,8 +607,8 @@ export default {
 };
 </script>
 
-<page class="shell mode-{{mode}}">
-  <view class="full panel-list">
+<page class="shell">
+  <view class="full {{panelList}}">
     <view class="hdr">
       <text class="title">{{title}}</text>
       <text class="meta">{{progressText}}</text>
@@ -628,7 +636,7 @@ export default {
     </view>
   </view>
 
-  <view class="full panel-rest">
+  <view class="full {{panelRest}}">
     <view class="hdr">
       <text class="eyebrow">组间休息</text>
       <text class="cap">{{restLogged}}</text>
@@ -654,7 +662,7 @@ export default {
     </view>
   </view>
 
-  <view class="full panel-done">
+  <view class="full {{panelDone}}">
     <view class="hdr">
       <text class="eyebrow">{{doneTitle}}</text>
       <text class="meta">{{dateText}}</text>
@@ -675,7 +683,7 @@ export default {
     </view>
   </view>
 
-  <view class="full panel-empty">
+  <view class="full {{panelEmpty}}">
     <view class="hdr">
       <text class="title">{{title}}</text>
     </view>
@@ -722,13 +730,10 @@ export default {
   height: 100%;
 }
 
-/* Every panel stays mounted and the mode class picks the visible one: in
-   Studio's runtime, ink:for rows inside a re-created ink:if block vanished. */
-.mode-list .panel-list,
-.mode-rest .panel-rest,
-.mode-done .panel-done,
-.mode-empty .panel-empty,
-.mode-restday .panel-empty { display: flex; }
+/* Every panel stays mounted and a data-bound class shows the current one:
+   rows inside a re-created ink:if block vanished in Studio's runtime, and a
+   dynamic class on the <page> root was not applied at all. */
+.full-on { display: flex; }
 
 .hdr {
   display: flex;
@@ -1050,7 +1055,7 @@ export default {
    inline card's _current target while giving it the full 480 x 352. */
 @media (max-height: 240px) {
   .shell { padding: 8px 12px; }
-  .shell .full { display: none; }
+  .shell .full-on { display: none; }
   .shell .compact { display: flex; }
 }
 </style>
