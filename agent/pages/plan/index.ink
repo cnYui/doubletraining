@@ -31,11 +31,13 @@ import {
   nudgeKg
 } from '../../lib/plan.js';
 import { interpretUtterance } from '../../lib/interpret.js';
+import { parseCommand } from '../../lib/grammar.js';
 
 const RANGE_DAYS = 60;
 const VISIBLE_ROWS = 5;
 const LISTEN_TIMEOUT_MS = 12000;
-const THINK_TIMEOUT_MS = 30000;
+// Studio's model answered in 7–35 s; give it room before reporting a failure.
+const THINK_TIMEOUT_MS = 60000;
 const MAX_HISTORY = 20;
 const MAX_NOTICE = 96;
 const EMPTY_HINT = 'Say what to add, e.g. "add squat, five sets of five at a hundred"';
@@ -156,6 +158,7 @@ export default {
     if (!this._isVisible) return;
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
     if (this._mode === 'idle' || this._mode === 'adjust') this._listen();
+    else if (this._mode === 'thinking') this._stillThinking();
   },
 
   onKeyDown(event) {
@@ -196,6 +199,8 @@ export default {
       this._stopListening();
     } else if (this._mode === 'adjust') {
       this._exitAdjust();
+    } else if (this._mode === 'thinking') {
+      this._stillThinking();
     }
     return true;
   },
@@ -213,9 +218,21 @@ export default {
       this._exitAdjust();
       return true;
     }
-    if (this._mode === 'thinking') return true;
+    if (this._mode === 'thinking') {
+      // The pending answer is dropped when it arrives.
+      this._thinkSeq += 1;
+      this._notice = 'Cancelled';
+      this._setMode('idle');
+      this._render();
+      return true;
+    }
     this._finish();
     return true;
+  },
+
+  _stillThinking() {
+    this._notice = 'Still thinking… double-tap to cancel';
+    this._render();
   },
 
   // Swipes: move between rows, or nudge the weight while adjusting.
@@ -350,15 +367,24 @@ export default {
       this._finish();
       return;
     }
+    // Common phrasings are parsed here; the model handles everything else.
+    const parsed = parseCommand(text, this._days[this._editKey]);
+    if (parsed) {
+      console.log('[doubletraining] plan grammar ' + this._id + ' ' + JSON.stringify(parsed));
+      this._applyCalls({ calls: [parsed], error: null }, text);
+      return;
+    }
     this._think(text);
   },
 
   _think(text) {
     this._setMode('thinking');
     this._notice = '"' + clip(text) + '"';
+    this._thinkStartedAt = Date.now();
     this._render();
     this._thinkSeq += 1;
     const token = this._thinkSeq;
+    this._tickThinking(token);
     const context = { todayKey: this._todayKey, editKey: this._editKey, day: this._days[this._editKey] };
     interpretUtterance(text, {
       model: languageModel(),
@@ -371,6 +397,13 @@ export default {
         (result.error ? ' error=' + result.error : ''));
       this._applyCalls(result, text);
     });
+  },
+
+  // Elapsed seconds while the model works; also shows whether timers run.
+  _tickThinking(token) {
+    if (!this._alive || this._mode !== 'thinking' || token !== this._thinkSeq) return;
+    this._render();
+    setTimeout(() => this._tickThinking(token), 1000);
   },
 
   _applyCalls(result, text) {
@@ -530,8 +563,10 @@ export default {
       });
     }
     const focusLabel = !day ? 'Not planned' : (day.rest ? 'Rest day' : day.focus);
+    const thinkingFor = this._mode === 'thinking' && this._thinkStartedAt ?
+      Math.round((Date.now() - this._thinkStartedAt) / 1000) : 0;
     const modeLabel = this._mode === 'listening' ? 'Listening…' :
-      this._mode === 'thinking' ? 'Thinking…' :
+      this._mode === 'thinking' ? 'Thinking… ' + thinkingFor + 's' :
         this._mode === 'adjust' ? 'Adjusting' :
           (items.length ? plural(items.length, 'exercise') : 'Empty');
     const notice = this._notice ||
