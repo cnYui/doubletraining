@@ -6,19 +6,15 @@
 // weeks to months between calls, so nothing here constructs a Date from a
 // year/month/day; "today" comes only from Date.now() and the UTC offset.
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86400000;
 
 const RELATIVE_OFFSETS = {
   today: 0,
   tomorrow: 1,
-  yesterday: -1,
-  '今天': 0,
-  '明天': 1,
-  '后天': 2,
-  '昨天': -1,
-  '前天': -2
+  yesterday: -1
 };
 
 function pad2(value) {
@@ -152,22 +148,25 @@ export function dayNumberLabel(key) {
 }
 
 export function monthLabel(key) {
-  return parseKey(key).month + ' 月';
+  return MONTHS[parseKey(key).month - 1];
 }
 
+// "Sep 2026"
 export function yearMonthLabel(key) {
   const parts = parseKey(key);
-  return parts.year + ' 年 ' + parts.month + ' 月';
+  return MONTHS[parts.month - 1] + ' ' + parts.year;
 }
 
+// "Fri, Sep 11"
 export function shortLabel(key) {
   const parts = parseKey(key);
-  return parts.month + '月' + parts.day + '日 ' + WEEKDAYS[weekdayIndex(key)];
+  return WEEKDAYS[weekdayIndex(key)] + ', ' + MONTHS[parts.month - 1] + ' ' + parts.day;
 }
 
+// "Sep 11"
 export function monthDayLabel(key) {
   const parts = parseKey(key);
-  return parts.month + '月' + parts.day + '日';
+  return MONTHS[parts.month - 1] + ' ' + parts.day;
 }
 
 // Monday-first week containing `key`.

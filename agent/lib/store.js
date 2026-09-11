@@ -4,7 +4,8 @@ import { sanitizeDays, seedDays } from './workout.js';
 
 export const STORAGE_KEY = 'doubletraining.days';
 // 2: reseed data written by the Date-object build, whose keys drifted in Studio.
-export const SEED_VERSION = 2;
+// 3: reseed the example plan with English exercise names and labels.
+export const SEED_VERSION = 3;
 
 function readRaw(storage) {
   if (!storage) return null;

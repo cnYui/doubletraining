@@ -1,7 +1,7 @@
 <script def>
 {
   "navigationBarTitleText": "Double Training",
-  "description": "打开训练日历(日期罗盘)。用户想看整体训练安排、挑选日期或询问这周练什么时调用;提到具体某天时把日期传入 date,页面会选中那一天。",
+  "description": "Open the training calendar (date wheel). Invoke when the user wants to see the overall plan, pick a date, or asks what to train this week. When a specific day is mentioned, pass it as date and the Page selects that day.",
   "schema": {
     "data": {
       "type": "object",
@@ -9,7 +9,7 @@
         "date": {
           "type": "string",
           "maxLength": 10,
-          "description": "要选中的日期:today、tomorrow、yesterday 或 YYYY-MM-DD。省略时选中今天。"
+          "description": "Date to select: today, tomorrow, yesterday, or YYYY-MM-DD. Defaults to today."
         }
       }
     }
@@ -44,12 +44,12 @@ const SLOTS = [
   { slot: 'd2', offset: 2, tone: 'far' }
 ];
 const HINT = [
-  { k: 'a', t: '滑动', key: true },
-  { k: 'b', t: ' 选日期 · ', key: false },
-  { k: 'c', t: '单击', key: true },
-  { k: 'd', t: ' 进入 · ', key: false },
-  { k: 'e', t: '双击', key: true },
-  { k: 'f', t: ' 退出', key: false }
+  { k: 'a', t: 'Swipe', key: true },
+  { k: 'b', t: ' pick date · ', key: false },
+  { k: 'c', t: 'Tap', key: true },
+  { k: 'd', t: ' open · ', key: false },
+  { k: 'e', t: 'Double-tap', key: true },
+  { k: 'f', t: ' exit', key: false }
 ];
 
 function pageStorage() {
@@ -98,7 +98,7 @@ export default {
     this._todayKey = todayKey();
     const input = resolveDateInput(query ? query.date : undefined, this._todayKey);
     this._selectedKey = clampKey(input.key, this._todayKey, RANGE_DAYS);
-    this._notice = input.valid ? '' : '没听清日期,已选中今天';
+    this._notice = input.valid ? '' : "Didn't catch the date; showing today";
     this._input = createTempleInput({
       now: () => Date.now(),
       schedule: (callback, delay) => setTimeout(callback, delay),
@@ -173,7 +173,7 @@ export default {
   _move(delta) {
     const target = clampKey(addDays(this._selectedKey, delta), this._todayKey, RANGE_DAYS);
     if (target === this._selectedKey) {
-      this._notice = delta < 0 ? '已经是最早可选的日期' : '已经是最晚可选的日期';
+      this._notice = delta < 0 ? 'This is the earliest date' : 'This is the latest date';
     } else {
       this._selectedKey = target;
       this._notice = '';
@@ -186,7 +186,7 @@ export default {
     wx.navigateTo({
       url: '/pages/day/index?date=' + this._selectedKey + '&from=dates',
       fail: () => {
-        this._notice = '没能打开这一天,请再单击一次';
+        this._notice = "Couldn't open this day; tap again";
         this._render();
       }
     });
@@ -205,11 +205,11 @@ export default {
     const selected = rows[2];
     this.setData({
       monthText: yearMonthLabel(this._selectedKey),
-      weekText: week.planned ? '本周 ' + week.done + ' / ' + week.planned : '本周未安排',
+      weekText: week.planned ? 'Week ' + week.done + ' / ' + week.planned : 'Nothing planned this week',
       rows,
       compactTitle: shortLabel(this._selectedKey) + ' · ' + selected.chip,
       compactStatus: selected.status,
-      notice: this._notice || (this._persisted ? '' : '本地存储不可用,这次的记录不会保存')
+      notice: this._notice || (this._persisted ? '' : 'Storage unavailable; this session will not be saved')
     });
   }
 };
@@ -233,7 +233,7 @@ export default {
           <text class="chip {{row.chipTone}}" ink:if="{{row.chip}}">{{row.chip}}</text>
           <view class="mark mark-{{row.mark}}" ink:if="{{row.mark}}"></view>
           <text class="dstat">{{row.status}}</text>
-          <text class="chip chip-on chip-today" ink:if="{{row.isToday}}">今天</text>
+          <text class="chip chip-on chip-today" ink:if="{{row.isToday}}">Today</text>
         </view>
       </block>
     </view>

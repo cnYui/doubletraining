@@ -48,7 +48,7 @@ test('stored malformed items are sanitized on load', () => {
   const storage = memoryStorage();
   storage.setItem(STORAGE_KEY, JSON.stringify({
     seedVersion: SEED_VERSION,
-    days: { [TODAY]: { focus: '胸', items: [{ id: 'x', name: 'x', type: 'strength', sets: -1 }] } }
+    days: { [TODAY]: { focus: 'Chest', items: [{ id: 'x', name: 'x', type: 'strength', sets: -1 }] } }
   }));
   assert.deepEqual(loadDays(storage, TODAY).days[TODAY].items, []);
 });

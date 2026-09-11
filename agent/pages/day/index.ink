@@ -1,7 +1,7 @@
 <script def>
 {
   "navigationBarTitleText": "Double Training",
-  "description": "打开某一天的训练计划并逐组打卡。用户说开始今天的训练、打开今天的计划、明天练什么等时调用,把日期传入 date。",
+  "description": "Open one day's workout plan and check off sets one by one. Invoke when the user says things like start today's workout, open today's plan, or what do I train tomorrow; pass the day as date.",
   "schema": {
     "data": {
       "type": "object",
@@ -9,7 +9,7 @@
         "date": {
           "type": "string",
           "maxLength": 10,
-          "description": "训练日期:today、tomorrow、yesterday 或 YYYY-MM-DD。省略时为今天。"
+          "description": "Workout date: today, tomorrow, yesterday, or YYYY-MM-DD. Defaults to today."
         }
       }
     }
@@ -38,6 +38,7 @@ import {
   logSet,
   markCardioDone,
   nextOpenIndex,
+  plural,
   prescription,
   previousSameFocusKey,
   progressRatio,
@@ -105,7 +106,7 @@ function rowFor(item, index, cursor) {
     kind: item.type,
     focus,
     done,
-    chip: item.type === 'cardio' ? (done ? '已完成' : '有氧') : '',
+    chip: item.type === 'cardio' ? (done ? 'Done' : 'Cardio') : '',
     boxes: item.type === 'strength' ? boxesFor(item, focus) : []
   };
 }
@@ -163,7 +164,7 @@ export default {
     const input = resolveDateInput(query ? query.date : undefined, this._todayKey);
     this._dateKey = input.key;
     this._fromDates = Boolean(query && query.from === 'dates');
-    this._notice = input.valid ? '' : '没听清日期,先打开今天';
+    this._notice = input.valid ? '' : "Didn't catch the date; opened today";
     this._input = createTempleInput({
       now: () => Date.now(),
       schedule: (callback, delay) => setTimeout(callback, delay),
@@ -307,7 +308,7 @@ export default {
     const count = this._day().items.length;
     const next = Math.min(Math.max(this._cursor + direction, 0), count - 1);
     this._notice = next === this._cursor ?
-      (direction < 0 ? '已经是第一项' : '已经是最后一项') : '';
+      (direction < 0 ? 'Already at the first exercise' : 'Already at the last exercise') : '';
     this._cursor = next;
     this._render();
   },
@@ -316,7 +317,7 @@ export default {
     const day = this._day();
     const item = day.items[this._cursor];
     if (isItemComplete(item)) {
-      this._notice = item.name + ' 已完成 · 滑动换动作';
+      this._notice = item.name + ' is done · swipe to switch';
       this._render();
       return;
     }
@@ -327,7 +328,7 @@ export default {
         this._showDone();
         return;
       }
-      this._notice = '已记 ' + item.name + ' ' + item.minutes + ' 分钟';
+      this._notice = 'Logged ' + item.name + ' · ' + item.minutes + ' min';
       this._cursor = Math.max(0, nextOpenIndex(updated, this._cursor));
       this._render();
       return;
@@ -346,7 +347,7 @@ export default {
       return;
     }
     this._cursor = Math.max(0, nextIndex);
-    this._notice = '已记 ' + result.set.name + ' 第 ' + result.set.number + ' 组';
+    this._notice = 'Logged ' + result.set.name + ' · set ' + result.set.number;
     this._render();
   },
 
@@ -381,7 +382,7 @@ export default {
     if (this._mode !== 'rest' || !this._rest) return;
     const rest = this._leaveRest();
     if (rest.nextIndex >= 0) this._cursor = rest.nextIndex;
-    this._notice = reason === 'timeout' ? '休息结束 · 开始下一组' : '';
+    this._notice = reason === 'timeout' ? 'Rest over · next set' : '';
     this._render();
   },
 
@@ -391,7 +392,7 @@ export default {
     this._cursor = rest.set.itemIndex;
     if (updated) {
       this._commit(updated);
-      this._notice = '已撤销 ' + rest.set.name + ' 第 ' + rest.set.number + ' 组';
+      this._notice = 'Undid ' + rest.set.name + ' · set ' + rest.set.number;
     }
     this._render();
   },
@@ -400,14 +401,14 @@ export default {
     const index = this._rest.nextIndex;
     const item = this._day().items[index];
     if (!item || item.type !== 'strength') {
-      this._notice = '下一项不需要调重量';
+      this._notice = 'The next item has no weight';
     } else {
       const updated = adjustKg(this._day(), index, direction);
       if (updated) {
         this._commit(updated);
         this._notice = '';
       } else {
-        this._notice = '已经是最低重量';
+        this._notice = 'Already at the lowest weight';
       }
     }
     this._render();
@@ -471,20 +472,20 @@ export default {
   },
 
   _hintPairs() {
-    const back = this._fromDates ? '返回' : '退出';
+    const back = this._fromDates ? 'back' : 'exit';
     if (this._mode === 'list') {
       const item = this._day().items[this._cursor];
-      if (isItemComplete(item)) return [['滑动', '换动作'], ['双击', back]];
+      if (isItemComplete(item)) return [['Swipe', 'switch'], ['Double-tap', back]];
       if (item.type === 'cardio') {
-        return [['单击', '记为完成'], ['滑动', '换动作'], ['双击', back]];
+        return [['Tap', 'mark done'], ['Swipe', 'switch'], ['Double-tap', back]];
       }
-      return [['单击', '完成这组'], ['滑动', '换动作'], ['双击', back]];
+      return [['Tap', 'log set'], ['Swipe', 'switch'], ['Double-tap', back]];
     }
     if (this._mode === 'rest') {
-      return [['单击', '跳过休息'], ['双击', '撤销这组'], ['滑动', '调重量']];
+      return [['Tap', 'skip rest'], ['Double-tap', 'undo set'], ['Swipe', 'adjust weight']];
     }
-    if (this._fromDates) return [['单击 / 双击', '返回日历']];
-    return [['单击', '关闭'], ['双击', '退出']];
+    if (this._fromDates) return [['Tap / Double-tap', 'back to calendar']];
+    return [['Tap', 'close'], ['Double-tap', 'exit']];
   },
 
   _render() {
@@ -499,7 +500,7 @@ export default {
       title: shortLabel(this._dateKey) + (hasPlan ? ' · ' + day.focus : ''),
       dateText: shortLabel(this._dateKey),
       notice: this._notice ||
-        (this._persisted ? '' : '本地存储不可用,这次的记录不会保存'),
+        (this._persisted ? '' : 'Storage unavailable; this session will not be saved'),
       hint: hintParts(this._hintPairs())
     };
     if (this._mode === 'list') Object.assign(patch, this._listPatch(day));
@@ -518,13 +519,14 @@ export default {
     }
     const item = day.items[this._cursor];
     const open = !isItemComplete(item);
+    const progress = totals.doneSets + ' / ' + plural(totals.sets, 'set');
     return {
-      progressText: totals.doneSets + ' / ' + totals.sets + ' 组',
+      progressText: progress,
       progressPercent: Math.round(progressRatio(day) * 100),
       rows,
       compactTitle: item.type === 'strength' && open ?
-        item.name + ' · 第 ' + (itemDone(item) + 1) + ' 组' : item.name,
-      compactMeta: totals.doneSets + ' / ' + totals.sets + ' 组',
+        item.name + ' · set ' + (itemDone(item) + 1) : item.name,
+      compactMeta: progress,
       compactValue: item.type === 'strength' ?
         formatKgWithUnit(item.kg) + ' × ' + item.reps : item.minutes + ' min',
       compactBoxes: rowFor(item, this._cursor, this._cursor).boxes
@@ -535,13 +537,13 @@ export default {
     const rest = this._rest;
     const remaining = Math.max(0, rest.deadlineMs - Date.now());
     const nextItem = rest.nextIndex >= 0 ? day.items[rest.nextIndex] : null;
-    let nextLabel = '没有剩余项目';
+    let nextLabel = 'Nothing left';
     let nextKg = '';
     let stepText = '';
     if (nextItem && nextItem.type === 'strength') {
-      nextLabel = nextItem.name + ' · 第 ' + (itemDone(nextItem) + 1) + ' 组';
+      nextLabel = nextItem.name + ' · set ' + (itemDone(nextItem) + 1);
       nextKg = formatKgWithUnit(nextItem.kg) + ' × ' + nextItem.reps;
-      stepText = '向前滑动 +' + formatKg(nextItem.step) + ' kg · 向后滑动 -' +
+      stepText = 'Swipe forward +' + formatKg(nextItem.step) + ' kg · back -' +
         formatKg(nextItem.step) + ' kg';
     } else if (nextItem) {
       nextLabel = nextItem.name;
@@ -550,7 +552,7 @@ export default {
     const clock = formatClock(remaining);
     this._lastClock = clock;
     return {
-      restLogged: '已记 · ' + rest.set.name + ' 第 ' + rest.set.number + ' 组 · ' +
+      restLogged: 'Logged · ' + rest.set.name + ' set ' + rest.set.number + ' · ' +
         formatKgWithUnit(rest.set.kg) + ' × ' + rest.set.reps,
       restClock: clock,
       restTotal: formatClock(rest.totalMs),
@@ -558,8 +560,8 @@ export default {
       nextLabel,
       nextKg,
       stepText,
-      compactTitle: '组间休息',
-      compactMeta: '下一组 ' + (nextKg || nextLabel),
+      compactTitle: 'Resting',
+      compactMeta: 'Next ' + (nextKg || nextLabel),
       compactValue: clock,
       compactBoxes: []
     };
@@ -584,20 +586,20 @@ export default {
     const previousKey = previousSameFocusKey(this._days, this._dateKey);
     const deltas = previousKey ? kgDeltas(day, this._days[previousKey]).slice(0, 3) : [];
     return {
-      doneTitle: (this._dateKey === this._todayKey ? '今日完成 · ' : '训练完成 · ') + day.focus,
+      doneTitle: (this._dateKey === this._todayKey ? 'DONE TODAY · ' : 'WORKOUT DONE · ') + day.focus,
       stats: [
-        { k: 'sets', label: '组数', value: String(totals.doneSets), unit: '' },
-        { k: 'volume', label: '总量', value: volume, unit: 'kg' },
-        { k: 'time', label: '用时', value: String(durationMinutes(day)), unit: 'min' },
-        { k: 'cardio', label: '有氧', value: String(cardioMinutes(day)), unit: 'min' }
+        { k: 'sets', label: 'SETS', value: String(totals.doneSets), unit: '' },
+        { k: 'volume', label: 'VOLUME', value: volume, unit: 'kg' },
+        { k: 'time', label: 'TIME', value: String(durationMinutes(day)), unit: 'min' },
+        { k: 'cardio', label: 'CARDIO', value: String(cardioMinutes(day)), unit: 'min' }
       ],
       deltaText: deltas.length ?
-        '较 ' + monthDayLabel(previousKey) + ' · ' +
+        'vs ' + monthDayLabel(previousKey) + ' · ' +
           deltas.map((entry) => entry.name + ' ' + formatDelta(entry.delta)).join(' · ') :
-        '第一次记录这个部位,下次开始对比重量',
-      compactTitle: '训练完成 · ' + day.focus,
+        'First session for this focus; weight comparisons start next time',
+      compactTitle: 'Workout done · ' + day.focus,
       compactMeta: shortLabel(this._dateKey),
-      compactValue: totals.doneSets + ' 组 · ' + volume + ' kg',
+      compactValue: plural(totals.doneSets, 'set') + ' · ' + volume + ' kg',
       compactBoxes: []
     };
   },
@@ -605,11 +607,12 @@ export default {
   _emptyPatch() {
     const restDay = this._mode === 'restday';
     return {
-      emptyTitle: restDay ? '休息日' : '这一天没有训练计划',
-      emptyText: restDay ? '今天不练,好好恢复。' : '回到训练日历,选一个有安排的日期。',
+      emptyTitle: restDay ? 'Rest day' : 'No workout planned',
+      emptyText: restDay ? 'No training today. Recover well.' :
+        'Go back to the calendar and pick a planned day.',
       compactTitle: shortLabel(this._dateKey),
       compactMeta: '',
-      compactValue: restDay ? '休息日' : '未安排',
+      compactValue: restDay ? 'Rest day' : 'Not planned',
       compactBoxes: []
     };
   }
@@ -647,7 +650,7 @@ export default {
 
   <view class="full {{panelRest}}">
     <view class="hdr">
-      <text class="eyebrow">组间休息</text>
+      <text class="eyebrow">REST</text>
       <text class="cap">{{restLogged}}</text>
     </view>
     <view class="hero">
@@ -660,7 +663,7 @@ export default {
       </view>
     </view>
     <view class="next">
-      <text class="next-l">下一组</text>
+      <text class="next-l">NEXT</text>
       <text class="next-v">{{nextLabel}}</text>
       <text class="next-kg">{{nextKg}}</text>
     </view>
@@ -822,7 +825,7 @@ export default {
 }
 
 .row-name {
-  width: 120px;
+  width: 140px;
   font-size: 14px;
   line-height: 18px;
   color: rgba(64, 255, 94, 0.72);

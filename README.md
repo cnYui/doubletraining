@@ -1,10 +1,10 @@
 # Double Training
 
-Rokid Glasses 上的健身打卡智能体(AIUI 0.17.0,单色绿 480 × 352)。按日期看训练计划,镜腿单击完成一组、在方框里打勾;重量、次数、有氧分钟都记在眼镜本地。
+A workout check-in agent for Rokid Glasses (AIUI 0.17.0, monochrome green, 480 × 352). Browse the plan by date and tick off each set with a temple tap; weights, reps, and cardio minutes stay on the glasses.
 
-## 导入 AIUI Studio
+## Import into AIUI Studio
 
-AIUI 工程根是仓库里的 `agent/` 子目录(它直接包含 `app.json`),不是仓库根:
+The AIUI project root is the `agent/` subdirectory (it contains `app.json` directly), not the repository root:
 
 ```text
 Repository: https://github.com/cnYui/doubletraining
@@ -12,55 +12,56 @@ Ref: main
 AIUI project directory: agent
 ```
 
-Studio 左上角「GitHub 导入」填:`https://github.com/cnYui/doubletraining/tree/main/agent`
+In Studio, open the **New Agent** menu at the top left, choose **GitHub Import**, and enter `https://github.com/cnYui/doubletraining/tree/main/agent`.
 
-## 两个页面
+## Pages
 
-| Page | 内容 | 镜腿操作 |
+| Page | What it shows | Temple input |
 | --- | --- | --- |
-| `pages/dates/index` 训练日历 | 滚轮式日期选择,选中日放大,上下各露两天,显示部位与完成度 | 向前滑动 = 前一天,向后滑动 = 后一天,单击 = 进入这天,双击 = 退出 |
-| `pages/day/index` 当日计划 | 动作列表与每组方框;组间休息;完成总结 | 见下表 |
+| `pages/dates/index` training calendar | A date wheel: the selected day is enlarged with two days on each side, each showing its focus and progress | Swipe forward = previous day, swipe back = next day, tap = open that day, double tap = exit |
+| `pages/day/index` day plan | Exercises with one box per set, and a summary when everything is done | See below |
 
-当日计划的状态:
+Day plan states:
 
-| 状态 | 单击 | 双击 | 向前 / 向后滑动 |
+| State | Tap | Double tap | Swipe forward / back |
 | --- | --- | --- | --- |
-| 列表 | 当前动作按计划记一组、方框打勾,一个动作做完自动移到下一个;有氧项单击记为完成 | 返回训练日历 | 上一个 / 下一个动作 |
-| 完成 | 返回训练日历 | 返回训练日历 | — |
+| List | Log one set of the focused exercise at the planned weight and reps and tick its box; after the last set the focus moves to the next open exercise; on a cardio item, mark it done | Back to the calendar | Previous / next exercise |
+| Done | Back to the calendar | Back to the calendar | — |
 
-组间休息倒计时(单击跳过、双击撤销、滑动调下一组重量)的代码还在,但暂时关闭:`pages/day/index.ink` 里 `REST_TIMER_ENABLED = false`。
+The done state shows sets, volume (Σ weight × reps), time, cardio minutes, and the weight change against the last session with the same focus.
 
-完成页显示组数、总量(Σ 重量 × 次数)、用时、有氧分钟,以及与上一次同部位训练的重量对比。
+The rest countdown between sets (tap to skip, double tap to undo, swipe to adjust the next set's weight) is still in the code but switched off: `REST_TIMER_ENABLED = false` in `pages/day/index.ink`.
 
-## 镜腿按键(Studio 真机模拟实测)
+## Temple input (measured in the Studio simulator)
 
-模拟器里单击和滑动都先发 `GlobalHook`,再发手势键:单击 → `Enter`,向前滑动 → `ArrowUp`,向后滑动 → `ArrowDown`。页面只认手势键;单独出现的 `GlobalHook`(真机可能只发它)在 280 ms 后按一次单击处理,紧跟手势键的 `GlobalHook` 会被忽略,见 `agent/lib/temple.js`。
+In the simulator, a tap and each swipe send `GlobalHook` first and then the gesture key: tap → `Enter`, swipe forward → `ArrowUp`, swipe back → `ArrowDown`. The Pages act only on gesture keys. A lone `GlobalHook` (physical glasses may send only that) counts as one tap after 280 ms, and a `GlobalHook` that arrives right after a gesture key is ignored; see `agent/lib/temple.js`.
 
-**双击在模拟器里不会送到智能体页面**:页面日志里既没有 `GlobalHook` 也没有 `Backspace`。所以"双击返回日历"在模拟器里测不了;真机上双击是否作为 `Backspace` 送到页面还没有验证。
+**A double tap never reaches agent Pages in the simulator**: the Page logs show neither `GlobalHook` nor `Backspace`. "Double tap to go back" therefore cannot be tested in Studio, and whether physical glasses deliver it as `Backspace` is not verified yet.
 
-## 目录
+## Layout
 
 ```text
-agent/                  AIUI Studio 导入根
-  AGENTS.md             智能体身份、语音路由规则、能力边界
+agent/                  AIUI Studio import root
+  AGENTS.md             Agent identity, voice routing rules, capability limits
   app.json              pages: dates, day
-  pages/dates/index.ink 训练日历
-  pages/day/index.ink   当日计划(列表 / 休息 / 完成)
-  lib/                  纯逻辑:日期、训练模型、存储、镜腿输入
+  pages/dates/index.ink Training calendar
+  pages/day/index.ink   Day plan (list / done; rest countdown switched off)
+  lib/                  Pure logic: dates, workout model, storage, temple input
   aiui-audit-claims.json
-tests/                  Node 单元测试(不进 Studio)
+docs/aiui-audit.md      UX and capability audit (every row BLOCKED until device evidence exists)
+tests/                  Node unit tests (not imported into Studio)
 ```
 
-## 开发
+## Development
 
 ```bash
 npm test
 ```
 
-需要 Node 20+。测试覆盖 `agent/lib/` 的全部纯逻辑;页面行为需要在 Studio 模拟器和真机上验证。
+Requires Node 20+. The tests cover all pure logic in `agent/lib/`; Page behavior needs the Studio simulator and physical glasses.
 
-## 现状
+## Status
 
-- 已在 Studio 模拟器里验证的内容记录在提交历史和审计文件里;真机(光学、按键顺序、点头、存储持久化)都还没有验证。
-- 语音只负责打开页面并传日期;"记 80 公斤 6 个"这类语音记录还没有做,因为草稿态智能体的槽位抽取在模拟器里不生效,需要先经过 Studio「构建与提审」。
-- 首次打开写入示例计划(胸 / 背 / 腿 / 肩 / 休息),数据只存在眼镜本地 `localStorage`。
+- What has been checked in the Studio simulator is recorded in `CLAUDE.md` and the commit history; nothing has been verified on physical glasses yet (optics, key order, nod, storage persistence).
+- Voice only opens a Page with a date. Voice logging such as "log 80 kg for 6 reps" is not built: slot filling does not work for draft agents in the simulator and needs Studio's build-and-review flow first.
+- The first launch writes an example plan (chest / back / legs / shoulders / rest) to `localStorage`, on the glasses only.

@@ -16,48 +16,48 @@ function cardio(id, name, minutes) {
 
 const TEMPLATES = {
   chest: () => ({
-    focus: '胸',
+    focus: 'Chest',
     rest: false,
     items: [
-      strength('bench', '卧推', 5, 8, 80, 2.5, 120),
-      strength('incline-db', '上斜哑铃推', 4, 10, 26, 2, 90),
-      strength('pec-deck', '蝴蝶机夹胸', 3, 12, 45, 5, 60),
-      strength('cable-low', '龙门架下胸', 3, 12, 20, 2.5, 60),
-      cardio('swim', '游泳', 30)
+      strength('bench', 'Bench Press', 5, 8, 80, 2.5, 120),
+      strength('incline-db', 'Incline DB Press', 4, 10, 26, 2, 90),
+      strength('pec-deck', 'Pec Deck', 3, 12, 45, 5, 60),
+      strength('cable-low', 'Cable Crossover', 3, 12, 20, 2.5, 60),
+      cardio('swim', 'Swim', 30)
     ]
   }),
   back: () => ({
-    focus: '背',
+    focus: 'Back',
     rest: false,
     items: [
-      strength('pull-up', '引体向上', 4, 8, 0, 2.5, 120),
-      strength('barbell-row', '杠铃划船', 4, 8, 60, 2.5, 120),
-      strength('lat-pulldown', '高位下拉', 3, 12, 50, 5, 90),
-      strength('seated-row', '坐姿划船', 3, 12, 45, 5, 90)
+      strength('pull-up', 'Pull-up', 4, 8, 0, 2.5, 120),
+      strength('barbell-row', 'Barbell Row', 4, 8, 60, 2.5, 120),
+      strength('lat-pulldown', 'Lat Pulldown', 3, 12, 50, 5, 90),
+      strength('seated-row', 'Seated Row', 3, 12, 45, 5, 90)
     ]
   }),
   legs: () => ({
-    focus: '腿',
+    focus: 'Legs',
     rest: false,
     items: [
-      strength('squat', '深蹲', 5, 5, 100, 2.5, 150),
-      strength('rdl', '罗马尼亚硬拉', 4, 8, 80, 2.5, 120),
-      strength('leg-press', '腿举', 3, 12, 160, 10, 90),
-      strength('leg-curl', '腿弯举', 3, 12, 35, 5, 60),
-      cardio('bike', '单车', 20)
+      strength('squat', 'Squat', 5, 5, 100, 2.5, 150),
+      strength('rdl', 'Romanian DL', 4, 8, 80, 2.5, 120),
+      strength('leg-press', 'Leg Press', 3, 12, 160, 10, 90),
+      strength('leg-curl', 'Leg Curl', 3, 12, 35, 5, 60),
+      cardio('bike', 'Bike', 20)
     ]
   }),
   shoulders: () => ({
-    focus: '肩',
+    focus: 'Shoulders',
     rest: false,
     items: [
-      strength('ohp', '站姿推举', 4, 8, 40, 2.5, 120),
-      strength('lateral-raise', '哑铃侧平举', 4, 15, 8, 1, 60),
-      strength('face-pull', '面拉', 3, 15, 20, 2.5, 60),
-      strength('reverse-fly', '反向飞鸟', 3, 15, 6, 1, 60)
+      strength('ohp', 'Overhead Press', 4, 8, 40, 2.5, 120),
+      strength('lateral-raise', 'Lateral Raise', 4, 15, 8, 1, 60),
+      strength('face-pull', 'Face Pull', 3, 15, 20, 2.5, 60),
+      strength('reverse-fly', 'Reverse Fly', 3, 15, 6, 1, 60)
     ]
   }),
-  rest: () => ({ focus: '休息', rest: true, items: [] })
+  rest: () => ({ focus: 'Rest', rest: true, items: [] })
 };
 
 // [offset from today, template, completion, weight overrides]
@@ -170,7 +170,7 @@ function sanitizeItem(raw) {
 export function sanitizeDay(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const rest = raw.rest === true;
-  const focus = cleanName(raw.focus) || (rest ? '休息' : '训练');
+  const focus = cleanName(raw.focus) || (rest ? 'Rest' : 'Training');
   const seen = new Set();
   const items = [];
   if (!rest && Array.isArray(raw.items)) {
@@ -377,16 +377,17 @@ export function kgDeltas(day, previousDay) {
   return deltas;
 }
 
+// "BW" = bodyweight.
 export function formatKg(kg) {
-  return kg > 0 ? String(roundKg(kg)) : '自重';
+  return kg > 0 ? String(roundKg(kg)) : 'BW';
 }
 
 export function formatKgWithUnit(kg) {
-  return kg > 0 ? formatKg(kg) + ' kg' : '自重';
+  return kg > 0 ? formatKg(kg) + ' kg' : 'BW';
 }
 
 export function formatDelta(delta) {
-  if (delta === 0) return '持平';
+  if (delta === 0) return 'same';
   return (delta > 0 ? '+' : '-') + formatKg(Math.abs(delta)) + ' kg';
 }
 
@@ -411,19 +412,23 @@ export function prescription(item) {
   return item.sets + ' × ' + item.reps + ' · ' + formatKgWithUnit(item.kg);
 }
 
+export function plural(count, word) {
+  return count + ' ' + word + (count === 1 ? '' : 's');
+}
+
 export function daySummaryLabel(day) {
   const status = dayStatus(day);
-  if (status === 'none') return '未安排';
-  if (status === 'rest') return '休息日';
-  if (status === 'done') return '已完成';
+  if (status === 'none') return 'Not planned';
+  if (status === 'rest') return 'Rest day';
+  if (status === 'done') return 'Done';
   const totals = dayTotals(day);
-  if (status === 'partial') return totals.doneSets + ' / ' + totals.sets + ' 组';
-  return day.items.length + ' 项 · ' + totals.sets + ' 组';
+  if (status === 'partial') return totals.doneSets + ' / ' + plural(totals.sets, 'set');
+  return plural(day.items.length, 'exercise') + ' · ' + plural(totals.sets, 'set');
 }
 
 export function focusChip(day) {
   if (!day || (!day.rest && day.items.length === 0)) return '—';
-  return day.rest ? '休' : day.focus;
+  return day.rest ? 'Rest' : day.focus;
 }
 
 export function weekProgress(days, key) {

@@ -1,64 +1,64 @@
-# Double Training — Rokid AIUI 健身打卡智能体(工作区说明)
+# Double Training — Rokid AIUI workout check-in agent (workspace notes)
 
-> 给 Claude 的说明文件。本文件夹就是 `cnYui/doubletraining` 仓库的根目录;AIUI Studio 的导入根是其中的 `agent/` 子目录。
+> Notes for Claude. This folder is the root of the `cnYui/doubletraining` repository; the AIUI Studio import root is its `agent/` subdirectory. English is the project's primary language: keep code, UI text, and docs in English.
 
-## 目录关系
+## Where things live
 
-| 位置 | 是什么 |
+| Location | What it is |
 |---|---|
-| 本文件夹 | Git 仓库根,GitHub:`https://github.com/cnYui/doubletraining`(公开,`main`) |
-| `agent/` | **AIUI Studio 导入根**(直接含 `app.json`),AIUI 0.17.0,两个 Page:`pages/dates/index` 训练日历、`pages/day/index` 当日计划 |
-| `agent/lib/` | 纯逻辑:`dates.js` 日期(整数天数运算)、`workout.js` 训练模型与示例计划、`store.js` localStorage 持久化、`temple.js` 镜腿输入去重 |
-| `tests/` | Node 单元测试(`npm test`,Node 20+),不进 Studio |
-| `D:\CodeWorkSpace\rokid-aiui-agent-skill` | `rokid-aiui-agent` Skill 仓库(含参考计时器 `skills\rokid-aiui-agent\assets\focus-timer-agent`) |
-| `C:\Users\yui\.claude\skills\rokid-aiui-agent` | 已安装的 Skill,校验脚本在 `scripts/` |
+| This folder | Git repository root, GitHub `https://github.com/cnYui/doubletraining` (public, `main`) |
+| `agent/` | **AIUI Studio import root** (contains `app.json` directly), AIUI 0.17.0, two Pages: `pages/dates/index` training calendar and `pages/day/index` day plan |
+| `agent/lib/` | Pure logic: `dates.js` dates (integer day arithmetic), `workout.js` workout model and example plan, `store.js` localStorage persistence, `temple.js` temple-input de-duplication |
+| `tests/` | Node unit tests (`npm test`, Node 20+); not imported into Studio |
+| `docs/aiui-audit.md` | Generated UX/capability audit; regenerate after every change under `agent/` |
+| `D:\CodeWorkSpace\rokid-aiui-agent-skill` | The `rokid-aiui-agent` Skill repository (the reference timer lives in `skills\rokid-aiui-agent\assets\focus-timer-agent`) |
+| `C:\Users\yui\.claude\skills\rokid-aiui-agent` | Installed Skill; validation scripts are in `scripts/` |
 
-## 改代码 → Studio 调试的循环
+## Change → Studio debugging loop
 
-1. 本地改 `agent/`,跑 `npm test` 和
+1. Edit `agent/`, then run `npm test` and
    `python C:/Users/yui/.claude/skills/rokid-aiui-agent/scripts/validate_aiui_project.py agent --repository-root . --target-version 0.17.0 --strict`
 2. `git commit` + `git push origin main`
-3. Studio(`https://aiui.rokid.com`)左上「新建智能体」**整个按钮**打开下拉 →「GitHub 导入」→ 填
-   `https://github.com/cnYui/doubletraining/tree/main/agent` →「确认导入」。
-   - **同一地址再导入会就地更新已有的 `cnYui/doubletraining` 项目**,不会产生重复项目;效果预览会自动用新代码重渲染。
-   - 项目「···」菜单只有 上传云端 / 覆盖本地 / 本地导入 / 重命名 / 删除,没有"从 GitHub 拉取"。
-   - 导入框会残留上一次的地址,键盘清空不可靠;用表单填值(整体替换)再确认。下拉菜单在两次操作之间会自动关闭,打开和点「GitHub 导入」要连续完成。
-4. 对话框发 `/debug 模拟眼镜设备运行训练日历页面 pages/dates/index`(`/debug` 会变成标签,要点发送按钮)→ 卡片上点「进入」→ 画布进右上「效果预览」(480 × 352)。
-5. 右侧「真机模拟」:镜腿四个按钮 + 语音输入;「日志」面板显示页面的 `console.log`,「查看系统日志」切换运行时日志。
+3. In Studio (`https://aiui.rokid.com`), the whole **New Agent** button at the top left opens a menu → **GitHub Import** → enter
+   `https://github.com/cnYui/doubletraining/tree/main/agent` → **Confirm import**.
+   - **Importing the same URL again updates the existing `cnYui/doubletraining` project in place** (no duplicate project), and the effect preview re-renders with the new code.
+   - The project's "···" menu only offers upload to cloud / overwrite local / local import / rename / delete; there is no "pull from GitHub".
+   - The import field keeps the previous URL and clearing it with the keyboard is unreliable; set it as a form value (full replacement), then confirm. The dropdown closes between separate operations, so open it and click GitHub Import in one go.
+4. In the chat, send `/debug` followed by a request to run `pages/dates/index` on the simulated glasses. `/debug` turns into a chip; press the send button. The inline card appears → click **Enter** → the canvas moves into the **Effect Preview** window (480 × 352). The phrasing tested so far was Chinese; English phrasing is untested, and some phrasings get a "cannot do that" reply.
+5. Right-hand **Device Simulation** panel: four temple buttons, plus voice input (click the microphone first, then type the recognized text and send). The **Log** panel shows the Page's `console.log`; **Show system logs** toggles runtime logs.
 
-## 模拟器里的输入映射(Studio 1.1.0 实测)
+## Temple input in the simulator (Studio 1.1.0, measured)
 
-每个镜腿操作都先发 `GlobalHook`(keydown+keyup),再发手势键:
-
-| 镜腿操作 | 页面依次收到 | 本项目的用法 |
+| Temple action | Keys the Page receives | Use in this project |
 |---|---|---|
-| 单击 | `GlobalHook` → `Enter` | 日历:进入这天;列表:记一组并打勾 / 有氧记完成 |
-| 双击 | **智能体页面收不到任何按键**(2026-09-11 页面日志确认;只有系统桌面页会响应"清空对话") | 设计上是返回日历,模拟器里测不了 |
-| 向前滑动 | `GlobalHook` → `ArrowUp` | 日历:前一天;列表:上一个动作 |
-| 向后滑动 | `GlobalHook` → `ArrowDown` | 日历:后一天;列表:下一个动作 |
+| Tap | `GlobalHook` → `Enter` | Calendar: open the day; list: log a set and tick it / mark cardio done |
+| Double tap | **Nothing reaches agent Pages** (confirmed with Page logs on 2026-09-11; only the system home page reacts, by clearing its chat) | Designed as "back to calendar"; cannot be tested in the simulator |
+| Swipe forward | `GlobalHook` → `ArrowUp` | Calendar: previous day; list: previous exercise |
+| Swipe back | `GlobalHook` → `ArrowDown` | Calendar: next day; list: next exercise |
 
-页面只认手势键;`lib/temple.js` 让紧跟手势键的 `GlobalHook` 失效,单独出现的 `GlobalHook` 延迟 280 ms 当作一次单击(真机可能只发它)。真机的发送顺序未验证。
+The Pages act only on gesture keys. `lib/temple.js` drops a `GlobalHook` that follows a gesture key and treats a lone `GlobalHook` as one tap after 280 ms (physical glasses may send only that). The order on physical glasses is not verified.
 
-组间休息倒计时按用户要求暂时关闭:`pages/day/index.ink` 的 `REST_TIMER_ENABLED = false`,单击只打勾、停在列表。
+The rest countdown between sets is switched off at the user's request: `REST_TIMER_ENABLED = false` in `pages/day/index.ink`; a tap only ticks the box and stays on the list.
 
-## Studio 运行时的坑(都已在代码里绕开,别改回去)
+## Studio runtime pitfalls (all worked around in code — don't undo them)
 
-- 运行时是 QuickJS,**时区 UTC(`getTimezoneOffset()` = 0)**。
-- **`new Date(y, m, d)` / `setDate()` 不可靠**:同一段代码两次调用结果不同,示例计划曾被写到早一个月的日期。日期全部用整数"自 1970-01-01 的天数"运算,"今天"只从 `Date.now()` 和时区偏移推出。
-- **`ink:for` 所在元素自身的属性里,循环变量不解析**(日志 `Template variable 'row.tone' is missing`)。循环一律写成 `<block ink:for ... ink:for-item="x">` 包住内层元素。
-- **被 `ink:if` 销毁又重建的块,里面的 `ink:for` 行不再渲染**(从休息切回列表后动作行消失)。当日页的四个状态面板常驻,每个面板自己绑定数据驱动的 `full-on` 类来显示。
-- **`<page>` 根节点上的动态类不生效**(`<page class="shell mode-{{mode}}">` 里的 `mode-*` 从未被应用,当日页因此整页黑屏)。根节点只用静态类;动态类放在普通 `view` 上(日历行、提示文字已验证可用)。
-- **浏览器面板收起时页面完全停摆**:`visibilityState = hidden`、`requestAnimationFrame` 0 帧,Studio 的 GitHub 导入会卡在「正在解包归档并构建文件树」,效果预览也不渲染。测试时面板必须显示、窗口在前台。
-- **「进入」后的效果预览仍是 `_current` target**,只是尺寸变成 480 × 352。紧凑布局按高度切换(`@media (max-height: 240px)`),不按 target。内联卡片实测 448 × 150。
-- Ink 的 `localStorage` 不在浏览器 localStorage / IndexedDB 里,但在同一个 Studio 会话内跨重渲染保留。`store.js` 的 `SEED_VERSION` 升级会重写示例数据。
+- The runtime is QuickJS with **time zone UTC (`getTimezoneOffset()` = 0)**.
+- **`new Date(y, m, d)` and `setDate()` are unreliable**: the same code returned different results on consecutive calls, and the example plan was once written a month early. All date math uses integer days since 1970-01-01; "today" comes only from `Date.now()` and the UTC offset.
+- **The loop variable is not resolved in attributes of the element that carries `ink:for`** (log: `Template variable 'row.tone' is missing`). Always loop with `<block ink:for ... ink:for-item="x">` wrapped around the inner element.
+- **`ink:for` rows inside an `ink:if` block that is destroyed and re-created do not render again** (exercise rows vanished after returning from rest). The day Page keeps its panels mounted; each panel binds its own data-driven `full-on` class.
+- **A dynamic class on the `<page>` root is not applied** (`mode-*` in `<page class="shell mode-{{mode}}">` never applied, so the day Page went black). Use only static classes on the root; put dynamic classes on ordinary `view` elements (proven on calendar rows and hints).
+- **After "Enter", the effect preview keeps the `_current` target** at 480 × 352. The compact layout switches on height (`@media (max-height: 240px)`), not on target. The inline card measured 448 × 150.
+- Ink's `localStorage` lives neither in the browser's localStorage nor in IndexedDB, but it survives re-renders within one Studio session. Raising `SEED_VERSION` in `store.js` rewrites the example data.
+- **With the browser pane hidden the page stalls completely**: `visibilityState = hidden` and zero `requestAnimationFrame` frames, so a GitHub import sticks at the archive-unpacking step and the effect preview stops rendering. Keep the pane visible and the window in front while testing.
 
-## 已验证 / 未验证
+## Verified / not verified
 
-**模拟器里已验证(2026-09-11):** 导入与重新导入;日历页 5 行渲染、本周统计、前后滑动逐日移动、单击 `wx.navigateTo` 进入当日页;当日页列表渲染、单击记组进入休息倒计时、休息中滑动调下一组重量、向后滑动定位到有氧并单击记完成。
+**Verified in the simulator (2026-09-11):** import and re-import; the calendar renders five rows and the week counter, swipes move one day at a time, and a tap opens the day with `wx.navigateTo`; the day list renders; a tap logs a set (with the rest screen, before it was switched off); swiping during rest adjusted the next set's weight; swiping to cardio and tapping marked it done; the day Page no longer goes black after navigation.
 
-**未验证 / 待确认:** 双击(`Backspace`)是否送达页面——休息中双击没有撤销;从休息切回列表的行渲染(已改为常驻面板,待复测);被覆盖的页面是否也收到按键(已加可见性判断,待复测);完成页;语音路由和 `date` 槽位(草稿态不注册 schema);点头;一切真机行为。模拟器结论 ≠ 真机通过,Skill 的发布门槛要真机签名证据。
+**Not verified / open:** tap-to-tick without the rest screen (just changed); English UI text on the 480 × 352 layout; whether a covered calendar Page still receives keys (a visibility guard was added); the done state; voice routing and the `date` slot (draft agents don't register the schema); nod; everything on physical glasses. Simulator results are not device results; the Skill's release gates need signed device evidence.
 
-## 其它
+## Other
 
-- 根目录的空文件 `{s.stopPropagation()` 来路不明(不是本项目文件),未提交,也没有删除。
-- 本文件夹计划改名为 `Double Training`;改名要在关闭 Claude 会话后进行(Windows 不允许重命名进程当前目录,且会话记录按路径存放)。
+- Three zero-byte files in the root — `{s.stopPropagation()`, `rangeDays)`, `{,` — are not project files. They look like cmd.exe redirects of single lines of tool text (the `)` stays in the filename, which only cmd does). Settings hooks, plugins, and `dcg` were ruled out and harmless probes did not reproduce it; a separate session is tracing the cause. The files are not committed and have not been deleted.
+- This folder is planned to be renamed `Double Training`; do it after closing the Claude session (Windows won't rename a process's current directory, and session history is stored by path).
+- Temporary `console.log` diagnostics (`[doubletraining] ...` lifecycle and key logs) are still in both Pages while the user debugs in Studio; remove them before release.

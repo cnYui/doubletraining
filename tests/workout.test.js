@@ -49,20 +49,32 @@ function completeDay(day) {
 test('seed places a chest day today and history around it', () => {
   const days = seedDays(TODAY);
   const today = days[TODAY];
-  assert.equal(today.focus, '胸');
+  assert.equal(today.focus, 'Chest');
   assert.deepEqual(today.items.map((item) => item.name),
-    ['卧推', '上斜哑铃推', '蝴蝶机夹胸', '龙门架下胸', '游泳']);
+    ['Bench Press', 'Incline DB Press', 'Pec Deck', 'Cable Crossover', 'Swim']);
   assert.equal(dayStatus(today), 'planned');
-  assert.equal(daySummaryLabel(today), '5 项 · 15 组');
+  assert.equal(daySummaryLabel(today), '5 exercises · 15 sets');
   assert.equal(dayStatus(days['2026-09-04']), 'done');
+  assert.equal(daySummaryLabel(days['2026-09-04']), 'Done');
   assert.equal(days['2026-09-04'].items[0].kg, 77.5);
   assert.equal(dayStatus(days['2026-09-10']), 'partial');
-  assert.equal(daySummaryLabel(days['2026-09-10']), '12 / 14 组');
+  assert.equal(daySummaryLabel(days['2026-09-10']), '12 / 14 sets');
   assert.equal(dayStatus(days['2026-09-09']), 'rest');
-  assert.equal(focusChip(days['2026-09-09']), '休');
+  assert.equal(daySummaryLabel(days['2026-09-09']), 'Rest day');
+  assert.equal(focusChip(days['2026-09-09']), 'Rest');
   assert.equal(dayStatus(days['2026-09-17']), 'none');
-  assert.equal(daySummaryLabel(undefined), '未安排');
+  assert.equal(daySummaryLabel(undefined), 'Not planned');
   assert.equal(focusChip(undefined), '—');
+});
+
+test('summary labels use singular forms for one', () => {
+  const single = {
+    focus: 'Core',
+    rest: false,
+    items: [{ id: 'plank', name: 'Plank', type: 'strength', sets: 1, reps: 1, kg: 0,
+      step: 2.5, restSec: 60, log: [] }]
+  };
+  assert.equal(daySummaryLabel(single), '1 exercise · 1 set');
 });
 
 test('week progress counts planned training days Monday to Sunday', () => {
@@ -73,7 +85,7 @@ test('logSet records plan values immutably and stops at the set count', () => {
   const day = seedDays(TODAY)[TODAY];
   assert.equal(firstOpenIndex(day), 0);
   const first = logSet(day, 0, 1000);
-  assert.deepEqual(first.set, { itemIndex: 0, name: '卧推', number: 1, kg: 80, reps: 8 });
+  assert.deepEqual(first.set, { itemIndex: 0, name: 'Bench Press', number: 1, kg: 80, reps: 8 });
   assert.equal(day.items[0].log.length, 0, 'original day is untouched');
   let current = first.day;
   for (let set = 2; set <= 5; set += 1) current = logSet(current, 0, set * 1000).day;
@@ -91,7 +103,7 @@ test('undo, weight steps, and cardio completion', () => {
   assert.equal(adjustKg(day, 0, 1).items[0].kg, 82.5);
   assert.equal(adjustKg(day, 1, -1).items[1].kg, 24);
   const back = seedDays(TODAY)['2026-09-15'];
-  assert.equal(back.items[0].name, '引体向上');
+  assert.equal(back.items[0].name, 'Pull-up');
   assert.equal(adjustKg(back, 0, -1), null, 'bodyweight cannot go below zero');
   const swum = markCardioDone(day, 4, 5000);
   assert.equal(swum.items[4].doneAt, 5000);
@@ -117,18 +129,18 @@ test('a completed chest day summarises tonnage and compares with last week', () 
   const previousKey = previousSameFocusKey(days, TODAY);
   assert.equal(previousKey, '2026-09-04');
   assert.deepEqual(kgDeltas(done, days[previousKey]), [
-    { name: '卧推', delta: 2.5 },
-    { name: '上斜哑铃推', delta: 0 },
-    { name: '蝴蝶机夹胸', delta: 5 },
-    { name: '龙门架下胸', delta: 0 }
+    { name: 'Bench Press', delta: 2.5 },
+    { name: 'Incline DB Press', delta: 0 },
+    { name: 'Pec Deck', delta: 5 },
+    { name: 'Cable Crossover', delta: 0 }
   ]);
 });
 
 test('formatting helpers', () => {
-  assert.equal(formatKg(0), '自重');
+  assert.equal(formatKg(0), 'BW');
   assert.equal(formatKg(77.5), '77.5');
   assert.equal(formatKg(80), '80');
-  assert.equal(formatDelta(0), '持平');
+  assert.equal(formatDelta(0), 'same');
   assert.equal(formatDelta(2.5), '+2.5 kg');
   assert.equal(formatDelta(-5), '-5 kg');
   assert.equal(formatThousands(6580), '6,580');
@@ -139,21 +151,21 @@ test('formatting helpers', () => {
   assert.equal(formatClock(-5), '00:00');
   const days = seedDays(TODAY);
   assert.equal(prescription(days[TODAY].items[0]), '5 × 8 · 80 kg');
-  assert.equal(prescription(days['2026-09-15'].items[0]), '4 × 8 · 自重');
+  assert.equal(prescription(days['2026-09-15'].items[0]), '4 × 8 · BW');
   assert.equal(prescription(days[TODAY].items[4]), '30 min');
 });
 
 test('sanitizeDay drops malformed items and clamps untrusted data', () => {
   const clean = sanitizeDay({
-    focus: '胸'.repeat(40),
+    focus: 'Chest'.repeat(10),
     items: [
-      { id: 'a', name: '卧推', type: 'strength', sets: 2, reps: 8, kg: 60, step: 0, restSec: 5,
+      { id: 'a', name: 'Bench Press', type: 'strength', sets: 2, reps: 8, kg: 60, step: 0, restSec: 5,
         log: [{ reps: 8, kg: 60, at: 1 }, { reps: 8, kg: 60, at: 2 }, { reps: 8, kg: 60, at: 3 }] },
-      { id: 'a', name: '重复', type: 'strength', sets: 1, reps: 1, kg: 1 },
+      { id: 'a', name: 'Duplicate', type: 'strength', sets: 1, reps: 1, kg: 1 },
       { id: 'b', name: '', type: 'strength', sets: 1, reps: 1, kg: 1 },
-      { id: 'c', name: '坏数据', type: 'strength', sets: 0, reps: 1, kg: 1 },
-      { id: 'd', name: '跑步', type: 'cardio', minutes: 20, doneAt: 'x' },
-      { id: 'e', name: '魔法', type: 'spell' },
+      { id: 'c', name: 'Bad data', type: 'strength', sets: 0, reps: 1, kg: 1 },
+      { id: 'd', name: 'Run', type: 'cardio', minutes: 20, doneAt: 'x' },
+      { id: 'e', name: 'Magic', type: 'spell' },
       null
     ]
   });
@@ -164,7 +176,7 @@ test('sanitizeDay drops malformed items and clamps untrusted data', () => {
   assert.equal(clean.items[0].restSec, 90);
   assert.equal(clean.items[1].doneAt, null);
   assert.deepEqual(sanitizeDay({ rest: true, items: [{ id: 'x' }] }),
-    { focus: '休息', rest: true, items: [] });
+    { focus: 'Rest', rest: true, items: [] });
   assert.equal(sanitizeDay('nope'), null);
   assert.deepEqual(Object.keys(sanitizeDays({ '2026-09-11': {}, 'bad': {}, '2026-02-30': {} })),
     ['2026-09-11']);

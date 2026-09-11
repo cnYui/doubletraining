@@ -16,7 +16,7 @@ import {
   yearMonthLabel
 } from '../agent/lib/dates.js';
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 test('day numbers match UTC calendar arithmetic', () => {
   for (const key of ['1969-12-31', '1970-01-01', '2000-02-29', '2026-09-11',
@@ -66,7 +66,7 @@ test('resolveDateInput maps relative words and rejects junk', () => {
   assert.deepEqual(resolveDateInput(undefined, today), { key: today, valid: true });
   assert.deepEqual(resolveDateInput('', today), { key: today, valid: true });
   assert.deepEqual(resolveDateInput('tomorrow', today), { key: '2026-09-12', valid: true });
-  assert.deepEqual(resolveDateInput(' 昨天 ', today), { key: '2026-09-10', valid: true });
+  assert.deepEqual(resolveDateInput(' Yesterday ', today), { key: '2026-09-10', valid: true });
   assert.deepEqual(resolveDateInput('TODAY', today), { key: today, valid: true });
   assert.deepEqual(resolveDateInput('2026-10-01', today), { key: '2026-10-01', valid: true });
   assert.deepEqual(resolveDateInput('2026-02-30', today), { key: today, valid: false });
@@ -81,10 +81,10 @@ test('clampKey keeps the date wheel inside +/-60 days', () => {
 });
 
 test('labels and Monday-first weeks', () => {
-  assert.equal(shortLabel('2026-09-11'), '9月11日 周五');
-  assert.equal(yearMonthLabel('2026-09-11'), '2026 年 9 月');
+  assert.equal(shortLabel('2026-09-11'), 'Fri, Sep 11');
+  assert.equal(yearMonthLabel('2026-09-11'), 'Sep 2026');
   assert.equal(dayNumberLabel('2026-09-01'), '01');
-  assert.equal(weekdayLabel('2026-09-13'), '周日');
+  assert.equal(weekdayLabel('2026-09-13'), 'Sun');
   assert.deepEqual(weekKeys('2026-09-13'), [
     '2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10',
     '2026-09-11', '2026-09-12', '2026-09-13'
