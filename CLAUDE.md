@@ -7,8 +7,8 @@
 | Location | What it is |
 |---|---|
 | This folder | Git repository root, GitHub `https://github.com/cnYui/doubletraining` (public, `main`) |
-| `agent/` | **AIUI Studio import root** (contains `app.json` directly), AIUI 0.17.0, two Pages: `pages/dates/index` training calendar and `pages/day/index` day plan |
-| `agent/lib/` | Pure logic: `dates.js` dates (integer day arithmetic), `workout.js` workout model and example plan, `store.js` localStorage persistence, `temple.js` temple-input de-duplication |
+| `agent/` | **AIUI Studio import root** (contains `app.json` directly), AIUI 0.17.0, three Pages: `pages/dates/index` training calendar, `pages/day/index` day plan, `pages/plan/index` voice plan editor |
+| `agent/lib/` | Pure logic: `dates.js` dates (integer day arithmetic), `workout.js` workout model and example plan, `plan.js` plan edits + model tool contract, `grammar.js` local command parser with spoken numbers, `interpret.js` one-utterance model call, `store.js` localStorage persistence, `temple.js` temple-input de-duplication |
 | `tests/` | Node unit tests (`npm test`, Node 20+); not imported into Studio |
 | `docs/aiui-audit.md` | Generated UX/capability audit; regenerate after every change under `agent/` |
 | `D:\CodeWorkSpace\rokid-aiui-agent-skill` | The `rokid-aiui-agent` Skill repository (the reference timer lives in `skills\rokid-aiui-agent\assets\focus-timer-agent`) |
@@ -76,6 +76,15 @@ Measured with a throwaway `pages/probe/index` (kept on the `probe-chat-card` bra
 - `speechSynthesis.speak()` and `wx.speech.startRecognition()` run without errors; nothing audible in the simulator.
 - A simulated tap's `Enter` can arrive more than 1 s after the button press; wait ≥ 2 s before the next simulator action.
 - Studio in a real Chrome window works with the same flows (needs the account logged in there). The effect preview has an "AIUI Agent / 系统模拟" switch; in "AIUI Agent" mode the preview launches `app.json`'s first page, not the `/debug` card's page.
+
+## Plan editor (`pages/plan/index`, added 2026-09-11)
+
+- Flow: tap or `onVoiceWakeup` (with `preventDefault()`) → `SpeechRecognition` on the Page → transcript → `localCommand` (undo/done) → `grammar.js parseCommand` → otherwise `interpret.js` (fresh `LanguageModel` session, `PLAN_TOOLS`, 60 s timeout) → `plan.js applyCommand` → highlight + notice, `saveDays` + `saveLastEdited`, undo stack of 20.
+- Modes: `idle` (swipes move rows), `listening`, `thinking` (header counts seconds; tap → "still thinking", double tap cancels by bumping `_thinkSeq`), `adjust` (swipe forward = heavier by `item.step`, back = lighter, tap keeps). An exercise added without a weight enters `adjust` at once.
+- "done" / double tap in idle → `wx.navigateTo('/pages/day/index?date=KEY&from=plan')`.
+- Verified in the Studio simulator (Chrome, 2026-09-11): grammar path — "bench press eighty two point five" → `80 kg → 82.5 kg` and "add pull up four by eight" → row added + adjust mode, both within ~3 s; adjust mode swipes (BW → 5 kg) and tap-keep; "undo" (local); "done" → `pages/day/index?date=…&from=plan`. Model path — `add_exercise` (~14 s), `update_exercise` (~35 s), `adjust_weight` (~25 s), `set_week` (~90 s), and "what should I do today" → `not_a_change` with no plan change (~35 s); the header counter ticks while the model works (`setTimeout` runs during a pending model call) and a tap shows "Still thinking…".
+- Not verified: "remove" through the model, the double-tap cancel (a simulator double tap never reaches Pages), the 60 s timeout actually firing (the earlier 30 s timeout never fired during a 90 s call — cause unknown), the chat-card layout of this Page, everything on physical glasses (including whether `RECORD_AUDIO` must be declared).
+- Model latency in the simulator was 7–90 s per request, which is why `grammar.js` exists: the common phrasings never reach the model.
 
 ## Verified / not verified
 

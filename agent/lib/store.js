@@ -1,5 +1,6 @@
 // Persistence over any Web Storage-shaped object (localStorage in the Page,
 // an in-memory fake in tests). Failures degrade to an unsaved session.
+import { isKey } from './dates.js';
 import { sanitizeDays, seedDays } from './workout.js';
 
 export const STORAGE_KEY = 'doubletraining.days';
@@ -20,6 +21,30 @@ export function saveDays(storage, days) {
   if (!storage) return false;
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify({ seedVersion: SEED_VERSION, days }));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// The day the plan editor worked on last, so "add squat" without a date goes
+// to the same day as the previous command.
+export const LAST_EDITED_KEY = 'doubletraining.lastEdited';
+
+export function loadLastEdited(storage) {
+  if (!storage) return null;
+  try {
+    const value = storage.getItem(LAST_EDITED_KEY);
+    return isKey(value) ? value : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+export function saveLastEdited(storage, key) {
+  if (!storage || !isKey(key)) return false;
+  try {
+    storage.setItem(LAST_EDITED_KEY, key);
     return true;
   } catch (error) {
     return false;
