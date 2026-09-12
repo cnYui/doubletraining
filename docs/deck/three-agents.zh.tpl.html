@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三个智能体，同一块屏幕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* 中文版：色彩 token 与英文版一致（沿用 DoubleRunner 评审 deck 的房屋风格），
+     字体栈与字号行距按中文重排。浅色为基准，深色只重定义 token，
+     同时覆盖未标记（跟随系统）与已标记两种状态。 */
+  :root {
+    --paper: #f2f4ef;
+    --panel: #ffffff;
+    --panel-2: #e9ede4;
+    --ink: #12160f;
+    --muted: #5f6a5b;
+    --rule: #d2d8cc;
+    --accent: #1c7a3c;
+    --accent-soft: #e2efe2;
+    --amber: #8f5712;
+    --amber-soft: #f4e9d8;
+    --screen: #040604;
+    --screen-line: #2c4a30;
+    --shadow: 0 1px 2px rgba(18, 22, 15, 0.06), 0 12px 28px rgba(18, 22, 15, 0.08);
+    --display: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --body: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "Noto Sans SC", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e110c;
+      --panel: #171b14;
+      --panel-2: #1f251c;
+      --ink: #e8ede4;
+      --muted: #9aa795;
+      --rule: #2d3428;
+      --accent: #5fd17a;
+      --accent-soft: #1a2a1d;
+      --amber: #d8a05d;
+      --amber-soft: #2a2317;
+      --screen: #040604;
+      --screen-line: #33563a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0e110c;
+    --panel: #171b14;
+    --panel-2: #1f251c;
+    --ink: #e8ede4;
+    --muted: #9aa795;
+    --rule: #2d3428;
+    --accent: #5fd17a;
+    --accent-soft: #1a2a1d;
+    --amber: #d8a05d;
+    --amber-soft: #2a2317;
+    --screen: #040604;
+    --screen-line: #33563a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .frame {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fit { position: relative; }
+
+  .stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1280px;
+    height: 720px;
+    transform-origin: top left;
+    background: var(--paper);
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 42px 56px 56px;
+  }
+
+  .slide.is-current { display: flex; }
+
+  /* 文字 --------------------------------------------------------------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+  }
+
+  h1 {
+    margin: 4px 0 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 62px;
+    line-height: 1.14;
+    letter-spacing: 0.004em;
+    text-wrap: balance;
+  }
+
+  h2 {
+    margin: 6px 0 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 1.24;
+    letter-spacing: 0.004em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+  }
+
+  p { margin: 0; font-size: 13.5px; line-height: 1.72; color: var(--muted); }
+  p.lead { font-size: 16.5px; line-height: 1.7; color: var(--ink); max-width: 46em; }
+  strong, b { font-weight: 500; }
+  strong { color: var(--ink); }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .head { display: flex; flex-direction: column; gap: 2px; }
+  .head .lead { margin-top: 9px; }
+  .body { flex: 1; display: flex; gap: 26px; margin-top: 22px; min-height: 0; }
+  .body.stack { flex-direction: column; gap: 18px; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  /* 项目标识 ----------------------------------------------------------- */
+  .tag {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .mark {
+    display: inline-block;
+    padding: 2px 6px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  .mark.lg { padding: 4px 9px; font-size: 14px; }
+
+  /* 设备画面 ----------------------------------------------------------- */
+  .plate { margin: 0; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .screen {
+    background: var(--screen);
+    border: 1px solid var(--screen-line);
+    border-radius: 3px;
+    padding: 4px;
+    box-shadow: var(--shadow);
+    line-height: 0;
+  }
+  .screen img { width: 100%; height: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .plate figcaption {
+    font-size: 11.5px;
+    line-height: 1.62;
+    color: var(--muted);
+  }
+  .plate figcaption b { color: var(--ink); font-family: var(--mono); font-size: 11px; }
+
+  .flow { display: flex; align-items: flex-start; gap: 8px; }
+  .flow .plate { flex: 1; }
+  .flow .arrow {
+    align-self: flex-start;
+    margin-top: 62px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    text-align: center;
+    width: 58px;
+    line-height: 1.5;
+  }
+  .flow .arrow span { display: block; font-size: 16px; color: var(--rule); }
+
+  /* 数据块 ------------------------------------------------------------- */
+  .rows { display: flex; flex-direction: column; }
+  .rows .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rows .row:first-child { border-top: 1px solid var(--rule); }
+  .rows .k { font-size: 13px; line-height: 1.66; color: var(--muted); }
+  .rows .k b { color: var(--ink); }
+  .rows .v { font-family: var(--mono); font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rows .v.ok { color: var(--accent); }
+  .rows .v.no { color: var(--amber); }
+
+  .stats { display: flex; gap: 9px; flex-wrap: wrap; }
+  .stat {
+    flex: 1 1 0;
+    min-width: 104px;
+    padding: 11px 13px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+  }
+  .stat .v { font-family: var(--mono); font-size: 23px; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 12px; color: var(--muted); }
+  .stat .k { margin-top: 3px; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
+
+  .note {
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.72;
+    color: var(--muted);
+  }
+  .note.warn { border-left-color: var(--amber); background: var(--amber-soft); }
+  .note b { color: var(--ink); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--panel);
+  }
+  .chip.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .chip.off { color: var(--amber); border-color: var(--amber); background: var(--amber-soft); }
+
+  /* 三栏 --------------------------------------------------------------- */
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 16px 17px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    min-width: 0;
+  }
+  .card .top { display: flex; align-items: center; gap: 9px; }
+  .card .name { font-family: var(--display); font-weight: 700; font-size: 18px; }
+  .card p { font-size: 13px; }
+  .card .cite {
+    margin-top: auto;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.66;
+    color: var(--accent);
+  }
+
+  /* 表格 --------------------------------------------------------------- */
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left;
+    padding: 8px 12px 8px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 12.5px;
+    line-height: 1.62;
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    font-weight: 500;
+    border-bottom-color: var(--accent);
+  }
+  td { color: var(--muted); }
+  td b { color: var(--ink); }
+  td.m { font-family: var(--mono); font-size: 11.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  td.m.ok { color: var(--accent); }
+  td.m.no { color: var(--amber); }
+  tr.faint td { color: var(--muted); }
+  tr.faint td.m { color: var(--amber); }
+
+  /* 流水线 ------------------------------------------------------------- */
+  .pipe { display: flex; align-items: stretch; gap: 5px; }
+  .step {
+    flex: 1;
+    padding: 9px 11px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .step .sn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--accent); }
+  .step .sh { font-family: var(--display); font-weight: 500; font-size: 14px; line-height: 1.3; }
+  .step .sd { font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: var(--muted); }
+  .pipe .tick { align-self: center; color: var(--rule); font-size: 14px; }
+
+  /* 画布与亮度阶梯 ----------------------------------------------------- */
+  .canvases { display: flex; align-items: flex-end; gap: 26px; }
+  .cbox { position: relative; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 3px; }
+  .cbox .inner { position: absolute; border: 1px dashed var(--accent); background: var(--accent-soft); }
+  .cbox .lab {
+    position: absolute;
+    left: 0;
+    bottom: -22px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .cbox .lab b { color: var(--accent); font-weight: 500; }
+  .ladder { display: flex; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+  .ladder div { flex: 1; height: 40px; background: var(--screen); position: relative; }
+  .ladder div i { position: absolute; inset: 5px; background: #40ff5e; border-radius: 2px; }
+  .ladder-labels { display: flex; }
+  .ladder-labels span { flex: 1; font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: center; padding-top: 4px; }
+
+  /* 发现网格 ----------------------------------------------------------- */
+  .finds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; }
+  .find {
+    padding: 13px 15px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-top: 2px solid var(--amber);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+  .find .sym { font-family: var(--display); font-weight: 700; font-size: 14.5px; line-height: 1.4; color: var(--ink); }
+  .find .sym code { font-size: 13px; font-weight: 400; }
+  .find p { font-size: 12px; line-height: 1.7; }
+  .find .fix {
+    margin-top: auto;
+    font-size: 11.5px;
+    line-height: 1.66;
+    color: var(--accent);
+  }
+
+  .codeblock {
+    padding: 11px 13px;
+    background: var(--panel-2);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.72;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .codeblock .cm { color: var(--muted); }
+
+  .rule-line { height: 1px; background: var(--rule); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: 0; }
+
+  /* 页脚与导航 --------------------------------------------------------- */
+  .chrome {
+    position: absolute;
+    left: 56px;
+    right: 56px;
+    bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .chrome .wm { color: var(--ink); }
+  .chrome .wm b { color: var(--accent); font-weight: 500; }
+
+  .nav { position: absolute; right: 18px; bottom: 14px; display: flex; gap: 8px; z-index: 5; }
+  .nav button {
+    font-family: var(--mono);
+    font-size: 13px;
+    width: 34px;
+    height: 30px;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .dots { position: absolute; left: 18px; bottom: 20px; display: flex; gap: 5px; z-index: 5; }
+  .dots button {
+    width: 9px; height: 9px; padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--rule);
+    background: transparent;
+    cursor: pointer;
+  }
+  .dots button[aria-current="true"] { background: var(--accent); border-color: var(--accent); }
+  .dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    .frame { display: block; width: auto; height: auto; overflow: visible; }
+    .fit { width: auto !important; height: auto !important; }
+    .stage { position: static; transform: none !important; width: 1280px; height: 720px; page-break-after: always; }
+    .slide { display: flex !important; position: relative; inset: auto; width: 1280px; height: 720px; }
+    .nav, .dots { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="fit" id="fit">
+    <div class="stage" id="stage">
+
+      <!-- 1 · 封面 ----------------------------------------------------- -->
+      <section class="slide is-current" data-label="封面">
+        <div class="head">
+          <span class="eyebrow">产品评审 &middot; 2026 年 9 月 12 日 &middot; Rokid Glasses &middot; AIUI 0.17.0</span>
+          <h1>三个智能体，同一块屏幕</h1>
+          <p class="lead">DoubleTraining 记录你的每一组，DoubleRunner 守住你的步频，WorkHealthier 盯着你怎么坐。
+            三个独立项目，跑在同一套运行时、同一块 480 &times; 352 单绿屏、同一副镜腿手势上。</p>
+        </div>
+        <div class="body">
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:dt-cal}}" alt="DoubleTraining 训练日历：选中 9 月 11 日星期五，胸部，5 个动作 15 组，标记为今天"></div>
+            <figcaption><span class="mark">DT</span> <b>DoubleTraining</b> &middot; 选一个训练日，然后每完成一组点一下</figcaption>
+          </figure>
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:dr-run}}" alt="DoubleRunner 跑动中：步态曲线，196 spm，目标 190，45 步"></div>
+            <figcaption><span class="mark">DR</span> <b>DoubleRunner</b> &middot; 步态曲线、当前步频、按目标走的节拍器</figcaption>
+          </figure>
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:wh-good}}" alt="WorkHealthier 监测中：姿态与眼屏距离两块瓦片，均为良好"></div>
+            <figcaption><span class="mark">WH</span> <b>WorkHealthier</b> &middot; 头部角度、眼屏距离、连续坐着的时间</figcaption>
+          </figure>
+        </div>
+        <div class="chips">
+          <span class="chip">5 个 Page</span>
+          <span class="chip">3 个仓库，均在 github.com/cnYui</span>
+          <span class="chip on">132 个 Node 测试全部通过</span>
+          <span class="chip on">严格项目校验 &times; 3 全部干净</span>
+          <span class="chip off">尚未达到发布标准</span>
+        </div>
+      </section>
+
+      <!-- 2 · 共同出发点 ----------------------------------------------- -->
+      <section class="slide" data-label="共同出发点">
+        <div class="head">
+          <span class="eyebrow">共同的出发点</span>
+          <h2>每一个都在做手机结构上做不到的事</h2>
+          <p class="lead">眼镜本来就会用语音回答问题。三个智能体的范围都被限定在通用语音助手做不到的事上：
+            记住你的数字、读取本来就绑在你头上的传感器，以及看住你自己看不见的东西——你自己。</p>
+        </div>
+        <div class="body stack">
+          <div class="trio" style="flex: 1">
+            <div class="card">
+              <div class="top"><span class="mark lg">DT</span><span class="name">记忆</span></div>
+              <p>每一次点击都是一组被记下的训练，存在眼镜上。下一次训练从真实数字开始，而不是靠回忆；
+                总结页还能把今天和上一次训练同一个部位的成绩放在一起比。</p>
+              <p class="cite">vs Sep 4 &middot; Bench Press +2.5 kg<br>Pec Deck +5 kg</p>
+            </div>
+            <div class="card">
+              <div class="top"><span class="mark lg">DR</span><span class="name">头上本来就有的传感器</span></div>
+              <p>跑步步频通常要手表或足踏传感器。戴在头上时，每一步都以一次点头的形式到达陀螺仪，
+                所以眼镜不需要额外硬件就能读出步频，并据此打拍子。</p>
+              <p class="cite">180 spm 检出误差 &plusmn;3 spm<br>60 Hz 陀螺仪，屏上 6 s 曲线</p>
+            </div>
+            <div class="card">
+              <div class="top"><span class="mark lg">WH</span><span class="name">一个看自己的视角</span></div>
+              <p>你看不到自己的头部角度，也不知道自己已经凑到屏幕多近。眼镜正好在这个测量必须发生的位置上，
+                而且只在这件事已经错得够久时才开口。</p>
+              <p class="cite">头部下垂 &ge; 18&deg; 持续 8 s &rarr; 告警<br>距离 &lt; 45 cm 持续 15 s &rarr; 告警</p>
+            </div>
+          </div>
+          <div class="note"><b>没有后端、没有网络、没有配套 App。</b>三个项目全部在眼镜本地运行：纯逻辑模块把
+            <code>now</code> 当参数传入，状态存在 <code>localStorage</code>，
+            Page 被放进对话流而不是镜片上时有紧凑版兜底。</div>
+        </div>
+      </section>
+
+      <!-- 3 · DoubleTraining ------------------------------------------- -->
+      <section class="slide" data-label="DoubleTraining">
+        <div class="head">
+          <span class="tag"><span class="mark">DT</span> github.com/cnYui/doubletraining &middot; pages/dates &middot; pages/day &middot; pages/plan</span>
+          <h2>DoubleTraining —— 一本戴在脸上的训练本</h2>
+        </div>
+        <div class="body stack">
+          <div class="flow">
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-cal}}" alt="训练日历：9 月 11 日星期五被放大，第 2 / 5 周"></div>
+              <figcaption><b>pages/dates</b> &middot; 日期转盘，不是月历网格：选中那天被放大，两侧各留两天，
+                每一行都带着自己的状态。</figcaption>
+            </figure>
+            <div class="arrow"><span>&rsaquo;</span>单击</div>
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-tick}}" alt="当日计划：卧推三个方框已填实，15 组中完成 3 组"></div>
+              <figcaption><b>pages/day</b> &middot; 一次点击记下计划中的重量 &times; 次数并勾掉下一个方框；
+                一个动作做完，焦点跳到下一个未完成的动作。</figcaption>
+            </figure>
+            <div class="arrow"><span>&rsaquo;</span>最后一组</div>
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-done}}" alt="训练总结：15 组，6580 kg 总容量，有氧 30 分钟，与 9 月 4 日的对比"></div>
+              <figcaption><b>summary</b> &middot; 组数、总容量、耗时、有氧——然后是只有你自己的历史才能给出的那一行。</figcaption>
+            </figure>
+          </div>
+          <div class="two">
+            <div class="rows">
+              <div class="row"><span class="k"><b>一个胸日打完</b> &middot; 5 个动作，每组点一下</span><span class="v">15 组 &middot; 6,580 kg</span></div>
+              <div class="row"><span class="k"><b>组状态靠形状区分</b>，不只靠亮度 &middot; 轮廓、双线、实心</span><span class="v">3 种标记</span></div>
+              <div class="row"><span class="k"><b>语音改计划</b> &middot;「bench press eighty two point five」</span><span class="v ok">80 &rarr; 82.5 kg</span></div>
+              <div class="row"><span class="k">常用说法在眼镜本地解析，其余才交给模型</span><span class="v">约 3 s &middot; 7&ndash;90 s</span></div>
+            </div>
+            <div class="col">
+              <div class="note"><b>在模型回答之前就改完重量。</b>页内语言模型返回的是工具调用
+                （<code>add_exercise</code>、<code>adjust_weight</code>、<code>set_week</code>），
+                但在模拟器里要 7 到 90 秒，所以本地语法负责人们真正会说的那些句式，包括口述小数，模型只作兜底。</div>
+              <div class="note warn"><b>组间休息倒计时已经做好，然后被搁置。</b>按动作区分的休息时长、滑动改下一组重量、
+                按截止时间计算所以 Page 被隐藏也不会停——按需求方要求关掉了。
+                <code>REST_TIMER_ENABLED = true</code> 就能拿回来。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 · DoubleRunner --------------------------------------------- -->
+      <section class="slide" data-label="DoubleRunner">
+        <div class="head">
+          <span class="tag"><span class="mark">DR</span> github.com/cnYui/DoubleRunner &middot; pages/run &middot; build 2026-09-11.1</span>
+          <h2>DoubleRunner —— 听得见的步频</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.25">
+            <div class="flow">
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:dr-run}}" alt="跑动中：6 秒步态曲线与步点刻度，196 spm，目标 190 快 6，每秒 3.2 拍，45 步"></div>
+                <figcaption><b>跑动中</b> &middot; 主轴上最近 6 s 的角速度，每检出一步打一个点，44 px 的步频数字，
+                  截图这一刻节拍点正亮着。</figcaption>
+              </figure>
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:dr-done}}" alt="跑动结束：整场步频图表，目标为虚线，平均 186 spm，43% 在目标区间"></div>
+                <figcaption><b>已完成</b> &middot; 实时曲线被整场跑动的步频图表替换一次——在结束时绘制，
+                  而不是每帧重画。</figcaption>
+              </figure>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="v">186<small> spm</small></div><div class="k">平均步频，52 s 的一场</div></div>
+              <div class="stat"><div class="v">43 %</div><div class="k">落在目标区间内的时间</div></div>
+              <div class="stat"><div class="v">&plusmn;3<small> spm</small></div><div class="k">合成步态下的检测误差</div></div>
+              <div class="stat"><div class="v">333<small> ms</small></div><div class="k">180 spm 下的一拍，不漂移</div></div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div class="rows">
+              <div class="row"><span class="k"><b>一次点击带完整场跑动</b><br>ready &rarr; running &rarr; paused &rarr; done</span><span class="v">4 个状态</span></div>
+              <div class="row"><span class="k"><b>滑动设定目标</b>，在下一拍上重新对齐，所以节奏不会卡顿</span><span class="v">&plusmn;5 spm</span></div>
+              <div class="row"><span class="k">目标范围（限幅）&middot; 未指定时的默认值</span><span class="v">120&ndash;220 &middot; 180</span></div>
+              <div class="row"><span class="k">语音带着数字直接打开 Page：「步频 175」</span><span class="v">targetCadence</span></div>
+              <div class="row"><span class="k">每场跑动连同每秒步频序列一起存下</span><span class="v">最新 20 条</span></div>
+            </div>
+            <div class="note"><b>跑动中离开页面会自动暂停并释放传感器</b>，有步数的未完成跑动会在卸载时静默保存。
+              Back 键留给宿主，所以眼镜的行为和系统其他部分保持一致。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · WorkHealthier -------------------------------------------- -->
+      <section class="slide" data-label="WorkHealthier">
+        <div class="head">
+          <span class="tag"><span class="mark">WH</span> github.com/cnYui/WorkHealthier &middot; pages/monitor &middot; CAMERA 权限</span>
+          <h2>WorkHealthier —— 你看不见自己的那张书桌</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.25">
+            <div class="flow">
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:wh-good}}" alt="监测视图：姿态与距离两块瓦片带数值和标记，细节行，三行设置"></div>
+                <figcaption><b>监测中</b> &middot; 两块瓦片各带一个数值和一个标记，为聚焦项显示细节行，
+                  以及滑动能够到的五个目标。</figcaption>
+              </figure>
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:wh-alert}}" alt="过近告警：瓦片区域上的虚线框，标题、一行指引和消除提示"></div>
+                <figcaption><b>一次只有一个告警</b> &middot; 先姿态、再距离、最后坐姿时长；虚线框、一行指引、
+                  点一下或点头消除。</figcaption>
+              </figure>
+            </div>
+            <div class="note warn"><b>需求方要的是红外或激光测距，而平台两样都没有</b> —— AIUI 0.17 暴露的是蓝牙、
+              加速度计、方向、陀螺仪和电量，硬件是一颗 1200 万像素摄像头加一个 IMU。
+              所以距离只能按官方条码样例的路子走：靠显示器上一张二维码标记的成像大小推算。</div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div class="rows">
+              <div class="row"><span class="k"><b>姿态</b>来自旋转矢量传感器，相对于你点一下就能设定的基准</span><span class="v">EMA &middot; 8 s</span></div>
+              <div class="row"><span class="k">头部下垂 &middot; 注意，然后告警</span><span class="v">&ge; 10&deg; &middot; &ge; 18&deg;</span></div>
+              <div class="row"><span class="k">头部歪斜 &middot; 注意，然后告警</span><span class="v">&ge; 7&deg; &middot; &ge; 12&deg;</span></div>
+              <div class="row"><span class="k"><b>眼屏距离</b> &middot; 一张低质量照片，JS 解 WebP，找到二维码，按大小换算成厘米</span><span class="v">每 20 s</span></div>
+              <div class="row"><span class="k">持续过近 &middot; 一次校准即可抵掉标记尺寸误差</span><span class="v">&lt; 45 cm &middot; 15 s</span></div>
+              <div class="row"><span class="k"><b>连续坐着</b>不起身</span><span class="v">45 min</span></div>
+            </div>
+            <div class="note">没有传感器也没有摄像头的运行环境——网页模拟器、浏览器预览——会在 6 s 超时后进入
+              <b>150 秒的脚本演示</b>，所以不靠硬件也能看到并消除每一种告警。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 · 设计系统 ------------------------------------------------- -->
+      <section class="slide" data-label="设计系统">
+        <div class="head">
+          <span class="eyebrow">共用的设计系统</span>
+          <h2>三种尺寸、一种色相、五级亮度</h2>
+          <p class="lead">一个 Page 渲染在 3:4 光学画布内部的 15:11 横向视口里，而同一个 Page 还要以卡片形式在对话流里活下来。
+            三个项目用的是同样的三种画布和同一种绿。</p>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.05">
+            <div class="canvases" style="margin: 10px 0 32px">
+              <div class="cbox" style="width: 180px; height: 240px">
+                <div class="inner" style="left: -1px; top: 54px; width: 180px; height: 132px"></div>
+                <span class="lab"><b>480 &times; 640</b> 光学画布</span>
+              </div>
+              <div class="cbox" style="width: 180px; height: 132px; border-style: dashed; border-color: var(--accent); background: var(--accent-soft)">
+                <span class="lab"><b>480 &times; 352</b> 页面视口</span>
+              </div>
+              <div class="cbox" style="width: 168px; height: 56px">
+                <span class="lab"><b>448 &times; 150</b> 对话内嵌卡片</span>
+              </div>
+              <p style="font-family: var(--mono); font-size: 11px; line-height: 1.6; align-self: flex-end; padding-bottom: 2px">按同一比例<br>绘制 &mdash; 0.375&times;</p>
+            </div>
+            <div class="rows">
+              <div class="row"><span class="k">视口内安全边距 &middot; 内容宽度</span><span class="v">16 / 12 px &middot; 448 px</span></div>
+              <div class="row"><span class="k">结构线 &middot; 控件圆角 &middot; 面板圆角</span><span class="v">1 px &middot; 4 px &middot; 6 px</span></div>
+              <div class="row"><span class="k">最大填充面积，让镜片在日光下仍然可读</span><span class="v">12 % 亮度</span></div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div>
+              <div class="ladder">
+                <div><i style="opacity: 1"></i></div>
+                <div><i style="opacity: 0.72"></i></div>
+                <div><i style="opacity: 0.48"></i></div>
+                <div><i style="opacity: 0.24"></i></div>
+                <div><i style="opacity: 0.12"></i></div>
+              </div>
+              <div class="ladder-labels"><span>100 %</span><span>72 %</span><span>48 %</span><span>24 %</span><span>12 %</span></div>
+            </div>
+            <p>只有 <code>#40ff5e</code>，没有第二种颜色。层级来自亮度、字号和位置，绝不来自第二种色相——
+              因为这块屏幕没有第二种色相；所以每个状态同时还带着一个<strong>形状</strong>：
+              轮廓方框、双线、实心方框、虚线告警框。</p>
+            <div class="note"><b>高度低于 240 px 时，同一个 Page 变成卡片。</b>DoubleTraining 留下日期、计数和焦点；
+              DoubleRunner 留下状态、步频、目标和提示；WorkHealthier 留下状态行和两块瓦片。
+              一套布局，两种密度——不是第二个 Page。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 · 镜腿与语音 ----------------------------------------------- -->
+      <section class="slide" data-label="镜腿与语音">
+        <div class="head">
+          <span class="eyebrow">输入 &middot; 在 Studio 1.1.0 模拟器里实测，不是假设</span>
+          <h2>镜腿真正发出的按键，以及三个智能体各自的用法</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.5">
+            <table>
+              <thead>
+                <tr><th style="width: 74px">手势</th><th style="width: 150px">Page 收到的按键</th><th>DoubleTraining</th><th>DoubleRunner</th><th>WorkHealthier</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>单击</b></td><td class="m ok">GlobalHook &rarr; Enter</td><td>打开当天 &middot; 记一组</td><td>开始 &middot; 暂停 &middot; 继续</td><td>消除告警，否则执行聚焦项</td></tr>
+                <tr><td><b>前滑</b></td><td class="m ok">GlobalHook &rarr; ArrowUp</td><td>上一天或上一个动作</td><td>目标 +5 spm</td><td>移动焦点框</td></tr>
+                <tr><td><b>后滑</b></td><td class="m ok">GlobalHook &rarr; ArrowDown</td><td>下一天或下一个动作</td><td>目标 &minus;5；暂停时则结束</td><td>移动焦点框</td></tr>
+                <tr class="faint"><td><b>双击</b></td><td class="m no">没有按键到达 Page</td><td>原本设计为返回日历</td><td>留给宿主</td><td>退出，走宿主自己的 Backspace</td></tr>
+              </tbody>
+            </table>
+            <div class="note"><b>每个手势之前都会先来一个 GlobalHook。</b>把它当成单击会让每次触摸触发两次，
+              所以 Page 只响应手势键——而一个<b>孤立的</b> GlobalHook（真机可能只发这一个）
+              会在 280 ms 后被当作一次单击。真机上的按键顺序仍未确认。</div>
+          </div>
+          <div class="col" style="flex: 1">
+            <h3>眼镜上的语音</h3>
+            <div class="rows">
+              <div class="row"><span class="k">唤醒词能到达 Page，<code>preventDefault()</code> 把宿主挡在外面</span><span class="v ok">onVoiceWakeup</span></div>
+              <div class="row"><span class="k">识别在 Page 内运行，由一次镜腿单击启动</span><span class="v ok">SpeechRecognition</span></div>
+              <div class="row"><span class="k">页内模型用工具调用回答，而不是大段文字</span><span class="v ok">LanguageModel</span></div>
+              <div class="row"><span class="k">工具结果无法回传，所以每句话都用一个新会话</span><span class="v no">单向</span></div>
+              <div class="row"><span class="k">触觉：API 里没有，运行时里也没有</span><span class="v no">不存在</span></div>
+            </div>
+            <p>语音也可以带着槽位直接打开 Page，而不是用话回答：日计划是
+              <code>{ "date": "today" }</code>，跑动是 <code>targetCadence: 175</code>。
+              路由需要在 Studio 里构建并过审，所以目前仍未验证。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8 · 从 IMU 到数字 -------------------------------------------- -->
+      <section class="slide" data-label="从 IMU 到数字">
+        <div class="head">
+          <span class="eyebrow">信号处理 &middot; 纯函数，可在 Node 里重放</span>
+          <h2>从头戴 IMU 到一个可以照着做的数字</h2>
+        </div>
+        <div class="body stack">
+          <div>
+            <span class="tag" style="margin-bottom: 8px"><span class="mark">DR</span> 步频 &middot; 每一步都以一次点头的形式到达</span>
+            <div class="pipe" style="margin-top: 8px">
+              <div class="step"><span class="sn">01</span><span class="sh">原始采样</span><span class="sd">3 轴，60 Hz<br>rad/s 或 m/s&sup2;</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">02</span><span class="sh">高通</span><span class="sd">&tau; = 0.8 s<br>去掉漂移和重力</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">03</span><span class="sh">选轴</span><span class="sd">近期方差最大<br>30 % 回差</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">04</span><span class="sh">低通</span><span class="sd">&tau; = 40 ms<br>平滑峰值</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">05</span><span class="sh">已就绪的峰</span><span class="sd">&gt; max(0.35 rad/s, 0.9 &times; RMS)<br>间隔 250&ndash;1500 ms</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">06</span><span class="sh">步频</span><span class="sd">60000 / 最近 8 个中位数<br>再平滑 35 %</span></div>
+            </div>
+          </div>
+          <div class="two" style="flex: 1">
+            <div class="col">
+              <span class="tag"><span class="mark">WH</span> 姿态与距离 &middot; 两条流水线，一个 Page</span>
+              <div class="codeblock"><span class="cm">// 姿态</span>
+四元数 &rarr; 相对基准 &rarr; pitch / roll
+  &rarr; EMA &rarr; 良好 | 注意 | 不良 &rarr; 驻留 8 s &rarr; 告警
+
+<span class="cm">// 眼屏距离</span>
+cm = K &middot; marker_mm / longest_side_px / 10
+  <span class="cm">// K 默认 0.446（约 96&deg; 水平视场角），</span>
+  <span class="cm">// 在已知距离上一次校准即可替换</span></div>
+              <p>连续三次没找到标记会显示「No marker」并保留上一次读数；权限被拒、
+                或宿主不允许定时拍照时，退回成点一下测一次。</p>
+            </div>
+            <div class="col">
+              <h3>两个检测器都躲开的两个坑</h3>
+              <div class="rows">
+                <div class="row"><span class="k"><b>把一件事数成两件。</b>一次点头有两个波峰，头也会在阈值附近晃——
+                  所以只有信号回落到基线以下之后，下一步才会被计数；而一个姿态等级必须维持 8 s 才会开口</span><span class="v ok">重新就绪<br>+ 驻留</span></div>
+                <div class="row"><span class="k"><b>凭空造出一个间隔。</b>采样中断后又恢复时，滤波器重新起算，
+                  而不是把空档读成一大步</span><span class="v ok">重新起算</span></div>
+              </div>
+              <div class="chips">
+                <span class="chip on">180 spm &plusmn;3</span>
+                <span class="chip on">172 spm，非主轴 &plusmn;3</span>
+                <span class="chip on">110 spm 步行 &plusmn;3</span>
+                <span class="chip on">160 &rarr; 184 跟得上 &plusmn;4</span>
+                <span class="chip on">加速度计兜底 &plusmn;3</span>
+                <span class="chip on">只有噪声、没有运动：0 步</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9 · 平台的限制 ----------------------------------------------- -->
+      <section class="slide" data-label="平台的限制">
+        <div class="head">
+          <span class="eyebrow">六个改变了产品本身、而不只是代码的发现</span>
+          <h2>平台拒绝做到的事</h2>
+        </div>
+        <div class="body stack">
+          <div class="finds">
+            <div class="find">
+              <span class="sym">AIUI 0.17 里任何地方都没有振动 API</span>
+              <p>「让镜腿以 180 spm 震动」是最直觉的设计，而它做不出来：文档、样例和运行时里都没有触觉入口。</p>
+              <span class="fix">DR &middot; 拍子改成 1200 Hz 的短音，每第四拍加重，再加上亮 110 ms 的圆点。
+                车流噪声里就只剩圆点在承担。</span>
+            </div>
+            <div class="find">
+              <span class="sym">没有 ToF、没有激光、没有红外</span>
+              <p>一颗 1200 万像素摄像头和一个 IMU。距离只能从图像里来，而图像里需要一个已知尺寸的东西。</p>
+              <span class="fix">WH &middot; 显示器上贴一张打印的二维码标记，按成像大小测距，一次校准抵掉打印误差。</span>
+            </div>
+            <div class="find">
+              <span class="sym">双击永远到不了 Page</span>
+              <p>用 Page 级按键日志确认过：只有系统主页会响应。这个手势在真机上是真的，但离开真机就无法测试。</p>
+              <span class="fix">三个项目 &middot; 所有「返回」都留给宿主，也没有任何破坏性操作挂在双击上。</span>
+            </div>
+            <div class="find">
+              <span class="sym"><code>new Date(y, m, d)</code> 不能信</span>
+              <p>同一段调用在两次运行之间返回不同结果；而一张对话卡片曾经打开到 20 天之后——
+                因为一个以秒为单位的 UTC 偏移被当成了分钟。</p>
+              <span class="fix">DT &middot; 所有日期运算走 1970-01-01 以来的整数天，偏移统一归一化，
+                「今天」只从 <code>Date.now()</code> 来。</span>
+            </div>
+            <div class="find">
+              <span class="sym">模板引擎会丢行，也会忽略 class</span>
+              <p><code>&lt;page&gt;</code> 根节点上的动态 class 不起作用（黑屏），带 <code>ink:for</code>
+                的那个元素上取不到循环变量，被重建的 <code>ink:if</code> 里的行再也回不来。</p>
+              <span class="fix">三个项目 &middot; 根节点只用静态 class，每个循环都包一层
+                <code>&lt;block&gt;</code>，面板保持挂载、靠数据绑定的 class 切换。</span>
+            </div>
+            <div class="find">
+              <span class="sym">浏览器面板被遮住时一帧都不渲染</span>
+              <p>面板不在前台时，运行时报 <code>hidden</code> 并停止动画，于是导入会卡在解包中途、预览冻结。</p>
+              <span class="fix">流程 &middot; 每次截图都让 Studio 保持在前台。这份 deck 里的每一张屏都是这样拍的。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10 · 状态与下一步 -------------------------------------------- -->
+      <section class="slide" data-label="状态与下一步">
+        <div class="head">
+          <span class="eyebrow">诚实的账本 &middot; 三个项目，当前版本</span>
+          <h2>模拟器里是绿的，真机上是阻塞的</h2>
+        </div>
+        <div class="body stack">
+          <table>
+            <thead>
+              <tr><th style="width: 162px">项目</th><th style="width: 92px">Node 测试</th><th style="width: 104px">项目校验</th><th>在 AIUI Studio 里看到能跑</th><th style="width: 132px">审计矩阵</th><th style="width: 74px">真机</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="mark">DT</span> <b>DoubleTraining</b></td>
+                <td class="m ok">49 / 49</td><td class="m ok">严格，干净</td>
+                <td>导入与原地重新导入、日期转盘、点击打勾并自动前进、带总容量与上次对比的总结、约 3 s 完成的语音改计划</td>
+                <td class="m no">119 行阻塞<br>0 失败</td><td class="m no">未运行</td>
+              </tr>
+              <tr>
+                <td><span class="mark">DR</span> <b>DoubleRunner</b></td>
+                <td class="m ok">41 / 41</td><td class="m ok">严格，干净</td>
+                <td>四个状态、节拍调度与实际拍率、陀螺仪 &rarr; 加速度计 &rarr; 演示的兜底链、跑动记录持久化、两种布局密度、打包出 54.95 KB 的 .aix</td>
+                <td class="m no">65 行阻塞<br>0 失败</td><td class="m no">未运行</td>
+              </tr>
+              <tr>
+                <td><span class="mark">WH</span> <b>WorkHealthier</b></td>
+                <td class="m ok">42 / 42</td><td class="m ok">严格，干净</td>
+                <td>监测布局与焦点框、150 s 演示脚本里每一种告警的触发与消除、紧凑版对话卡片、校准流程、标记页</td>
+                <td class="m no">48 行阻塞<br>0 失败</td><td class="m no">未运行</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="two" style="flex: 1">
+            <div class="col">
+              <div class="note warn"><b>阻塞是设计好的答案，不是失败。</b>没有任何一行被标成 FAIL。
+                每一层证据都要求一份签名的采集清单和一次真实 Rokid Glasses 上的会话，而这台工作站上两者都不存在——
+                所以三个项目的审计结论都是 BLOCKED、release-ready: NO。</div>
+              <p>模拟器复现的是运行时，从来不是硬件：日光下的光学表现、运动模糊、传感器轴符号、摄像头策略、
+                解码耗时、点头、语音音量，以及真实的按键顺序，全都还没有结论。</p>
+            </div>
+            <div class="col">
+              <h3>下一次实机会话，按顺序</h3>
+              <div class="rows">
+                <div class="row"><span class="k">三个项目都导入真机，确认镜腿按键顺序，包括双击</span><span class="v">1</span></div>
+                <div class="row"><span class="k">按 180 spm 跑 5 分钟，把检出步频和手数对比，确认这个速度下短音听得见</span><span class="v">2</span></div>
+                <div class="row"><span class="k">在量好的距离上校准标记，再对照标签检查姿态轴的符号</span><span class="v">3</span></div>
+                <div class="row"><span class="k">在 Studio 里构建并过审，让语音能按日期打开一天、按步频打开一场跑动</span><span class="v">4</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="nav">
+  <button type="button" id="prev" aria-label="上一页">&larr;</button>
+  <button type="button" id="next" aria-label="下一页">&rarr;</button>
+</div>
+
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    var fit = document.getElementById('fit');
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var dots = document.getElementById('dots');
+    var current = 0;
+
+    slides.forEach(function (slide, i) {
+      var chrome = document.createElement('div');
+      chrome.className = 'chrome';
+      chrome.innerHTML =
+        '<span class="wm"><b>Rokid Glasses</b> &middot; ' + slide.dataset.label + '</span>' +
+        '<span>' + String(i + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0') + '</span>';
+      slide.appendChild(chrome);
+
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', '第 ' + (i + 1) + ' 页：' + slide.dataset.label);
+      dot.addEventListener('click', function () { show(i); });
+      dots.appendChild(dot);
+    });
+
+    function show(n) {
+      current = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, i) { s.classList.toggle('is-current', i === current); });
+      Array.prototype.forEach.call(dots.children, function (d, i) {
+        d.setAttribute('aria-current', i === current ? 'true' : 'false');
+      });
+      if (history.replaceState) history.replaceState(null, '', '#' + (current + 1));
+    }
+
+    function resize() {
+      var scale = Math.min((window.innerWidth - 40) / 1280, (window.innerHeight - 40) / 720);
+      scale = Math.max(0.2, scale);
+      stage.style.transform = 'scale(' + scale + ')';
+      fit.style.width = (1280 * scale) + 'px';
+      fit.style.height = (720 * scale) + 'px';
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { show(current + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(current - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { show(0); }
+      else if (e.key === 'End') { show(slides.length - 1); }
+    });
+    document.getElementById('prev').addEventListener('click', function () { show(current - 1); });
+    document.getElementById('next').addEventListener('click', function () { show(current + 1); });
+    window.addEventListener('resize', resize);
+
+    resize();
+    window.addEventListener('hashchange', function () {
+      show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+    });
+    show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  })();
+</script>
+</body>
+</html>

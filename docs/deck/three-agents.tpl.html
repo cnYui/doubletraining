@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three Agents, One Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Tokens carried over from the DoubleRunner review deck, so the three
+     projects keep one house style. Light is the base; dark redefines tokens
+     only, for both the un-stamped (system) and the stamped states. */
+  :root {
+    --paper: #f2f4ef;
+    --panel: #ffffff;
+    --panel-2: #e9ede4;
+    --ink: #12160f;
+    --muted: #5f6a5b;
+    --rule: #d2d8cc;
+    --accent: #1c7a3c;
+    --accent-soft: #e2efe2;
+    --amber: #8f5712;
+    --amber-soft: #f4e9d8;
+    --screen: #040604;
+    --screen-line: #2c4a30;
+    --shadow: 0 1px 2px rgba(18, 22, 15, 0.06), 0 12px 28px rgba(18, 22, 15, 0.08);
+    --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e110c;
+      --panel: #171b14;
+      --panel-2: #1f251c;
+      --ink: #e8ede4;
+      --muted: #9aa795;
+      --rule: #2d3428;
+      --accent: #5fd17a;
+      --accent-soft: #1a2a1d;
+      --amber: #d8a05d;
+      --amber-soft: #2a2317;
+      --screen: #040604;
+      --screen-line: #33563a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0e110c;
+    --panel: #171b14;
+    --panel-2: #1f251c;
+    --ink: #e8ede4;
+    --muted: #9aa795;
+    --rule: #2d3428;
+    --accent: #5fd17a;
+    --accent-soft: #1a2a1d;
+    --amber: #d8a05d;
+    --amber-soft: #2a2317;
+    --screen: #040604;
+    --screen-line: #33563a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .frame {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fit { position: relative; }
+
+  .stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1280px;
+    height: 720px;
+    transform-origin: top left;
+    background: var(--paper);
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 42px 56px 56px;
+  }
+
+  .slide.is-current { display: flex; }
+
+  /* type ---------------------------------------------------------------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    margin: 2px 0 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 76px;
+    line-height: 0.98;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  h2 {
+    margin: 5px 0 0;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+  }
+
+  p { margin: 0; font-size: 14.5px; line-height: 1.56; color: var(--muted); }
+  p.lead { font-size: 18px; line-height: 1.48; color: var(--ink); max-width: 74ch; }
+  strong { color: var(--ink); font-weight: 600; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .head { display: flex; flex-direction: column; gap: 3px; }
+  .head .lead { margin-top: 8px; }
+  .body { flex: 1; display: flex; gap: 26px; margin-top: 22px; min-height: 0; }
+  .body.stack { flex-direction: column; gap: 18px; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  /* project identity ---------------------------------------------------- */
+  .tag {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .mark {
+    display: inline-block;
+    padding: 2px 6px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  .mark.lg { padding: 4px 9px; font-size: 14px; }
+
+  /* device plate -------------------------------------------------------- */
+  .plate { margin: 0; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .screen {
+    background: var(--screen);
+    border: 1px solid var(--screen-line);
+    border-radius: 3px;
+    padding: 4px;
+    box-shadow: var(--shadow);
+    line-height: 0;
+  }
+  .screen img { width: 100%; height: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .plate figcaption {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .plate figcaption b { color: var(--ink); font-weight: 500; }
+
+  .flow { display: flex; align-items: flex-start; gap: 8px; }
+  .flow .plate { flex: 1; }
+  .flow .arrow {
+    align-self: flex-start;
+    margin-top: 62px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--accent);
+    text-align: center;
+    width: 66px;
+    line-height: 1.4;
+  }
+  .flow .arrow span { display: block; font-size: 16px; color: var(--rule); }
+
+  /* data blocks --------------------------------------------------------- */
+  .rows { display: flex; flex-direction: column; }
+  .rows .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rows .row:first-child { border-top: 1px solid var(--rule); }
+  .rows .k { font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+  .rows .k b { color: var(--ink); font-weight: 600; }
+  .rows .v { font-family: var(--mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rows .v.ok { color: var(--accent); }
+  .rows .v.no { color: var(--amber); }
+
+  .stats { display: flex; gap: 9px; flex-wrap: wrap; }
+  .stat {
+    flex: 1 1 0;
+    min-width: 104px;
+    padding: 11px 13px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+  }
+  .stat .v { font-family: var(--mono); font-size: 23px; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 12px; color: var(--muted); }
+  .stat .v.no { color: var(--amber); }
+  .stat .k { margin-top: 2px; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+
+  .note {
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  .note.warn { border-left-color: var(--amber); background: var(--amber-soft); }
+  .note b { color: var(--ink); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--panel);
+  }
+  .chip.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .chip.off { color: var(--amber); border-color: var(--amber); background: var(--amber-soft); }
+
+  /* three-up ------------------------------------------------------------ */
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 16px 17px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    min-width: 0;
+  }
+  .card .top { display: flex; align-items: center; gap: 9px; }
+  .card .name { font-family: var(--display); font-weight: 600; font-size: 19px; }
+  .card p { font-size: 13.5px; }
+  .card .cite {
+    margin-top: auto;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--accent);
+  }
+
+  /* tables -------------------------------------------------------------- */
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left;
+    padding: 8px 12px 8px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 13px;
+    line-height: 1.45;
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+    border-bottom-color: var(--accent);
+  }
+  td { color: var(--muted); }
+  td b { color: var(--ink); font-weight: 600; }
+  td.m { font-family: var(--mono); font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  td.m.ok { color: var(--accent); }
+  td.m.no { color: var(--amber); }
+  tr.faint td { color: var(--muted); }
+  tr.faint td.m { color: var(--amber); }
+
+  /* pipelines ----------------------------------------------------------- */
+  .pipe { display: flex; align-items: stretch; gap: 5px; }
+  .step {
+    flex: 1;
+    padding: 9px 10px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .step .sn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--accent); }
+  .step .sh { font-family: var(--display); font-weight: 600; font-size: 13.5px; line-height: 1.2; }
+  .step .sd { font-family: var(--mono); font-size: 10.5px; line-height: 1.42; color: var(--muted); }
+  .pipe .tick { align-self: center; color: var(--rule); font-size: 14px; }
+
+  /* canvas + luminance figures ------------------------------------------ */
+  .canvases { display: flex; align-items: flex-end; gap: 26px; }
+  .cbox { position: relative; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 3px; }
+  .cbox .inner { position: absolute; border: 1px dashed var(--accent); background: var(--accent-soft); }
+  .cbox .lab {
+    position: absolute;
+    left: 0;
+    bottom: -21px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .cbox .lab b { color: var(--accent); font-weight: 500; }
+  .ladder { display: flex; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+  .ladder div { flex: 1; height: 40px; background: var(--screen); position: relative; }
+  .ladder div i { position: absolute; inset: 5px; background: #40ff5e; border-radius: 2px; }
+  .ladder-labels { display: flex; }
+  .ladder-labels span { flex: 1; font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: center; padding-top: 4px; }
+
+  /* findings grid ------------------------------------------------------- */
+  .finds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; }
+  .find {
+    padding: 13px 15px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-top: 2px solid var(--amber);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+  .find .sym { font-family: var(--display); font-weight: 600; font-size: 15px; line-height: 1.22; color: var(--ink); }
+  .find .sym code { font-size: 13px; font-weight: 400; }
+  .find p { font-size: 12.5px; line-height: 1.5; }
+  .find .fix {
+    margin-top: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.48;
+    color: var(--accent);
+  }
+
+  .codeblock {
+    padding: 11px 13px;
+    background: var(--panel-2);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.62;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .codeblock .cm { color: var(--muted); }
+
+  .rule-line { height: 1px; background: var(--rule); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: 0; }
+
+  /* chrome -------------------------------------------------------------- */
+  .chrome {
+    position: absolute;
+    left: 56px;
+    right: 56px;
+    bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .chrome .wm { color: var(--ink); }
+  .chrome .wm b { color: var(--accent); font-weight: 500; }
+
+  .nav { position: absolute; right: 18px; bottom: 14px; display: flex; gap: 8px; z-index: 5; }
+  .nav button {
+    font-family: var(--mono);
+    font-size: 13px;
+    width: 34px;
+    height: 30px;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .dots { position: absolute; left: 18px; bottom: 20px; display: flex; gap: 5px; z-index: 5; }
+  .dots button {
+    width: 9px; height: 9px; padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--rule);
+    background: transparent;
+    cursor: pointer;
+  }
+  .dots button[aria-current="true"] { background: var(--accent); border-color: var(--accent); }
+  .dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    .frame { display: block; width: auto; height: auto; overflow: visible; }
+    .fit { width: auto !important; height: auto !important; }
+    .stage { position: static; transform: none !important; width: 1280px; height: 720px; page-break-after: always; }
+    .slide { display: flex !important; position: relative; inset: auto; width: 1280px; height: 720px; }
+    .nav, .dots { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="fit" id="fit">
+    <div class="stage" id="stage">
+
+      <!-- 1 · title ---------------------------------------------------- -->
+      <section class="slide is-current" data-label="Title">
+        <div class="head">
+          <span class="eyebrow">Product review &middot; 12 Sep 2026 &middot; Rokid Glasses &middot; AIUI 0.17.0</span>
+          <h1>Three agents, one display</h1>
+          <p class="lead">DoubleTraining logs your sets, DoubleRunner holds your cadence, WorkHealthier watches
+            how you sit. Three separate projects, built on one runtime, one 480 &times; 352 single-green
+            display, and one pair of temple gestures.</p>
+        </div>
+        <div class="body">
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:dt-cal}}" alt="DoubleTraining training calendar: Friday September 11 selected, Chest, 5 exercises, 15 sets, marked Today"></div>
+            <figcaption><span class="mark">DT</span> <b>DoubleTraining</b> &middot; pick a training day, then tap once per set</figcaption>
+          </figure>
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:dr-run}}" alt="DoubleRunner running: stride curve, 196 spm, target 190, 45 steps"></div>
+            <figcaption><span class="mark">DR</span> <b>DoubleRunner</b> &middot; stride curve, cadence, metronome at your target</figcaption>
+          </figure>
+          <figure class="plate">
+            <div class="screen"><img src="{{IMG:wh-good}}" alt="WorkHealthier monitoring: posture and eye-distance tiles, both good"></div>
+            <figcaption><span class="mark">WH</span> <b>WorkHealthier</b> &middot; head angle, eye distance, time in the chair</figcaption>
+          </figure>
+        </div>
+        <div class="chips">
+          <span class="chip">5 Pages</span>
+          <span class="chip">3 repositories under github.com/cnYui</span>
+          <span class="chip on">132 Node tests passing</span>
+          <span class="chip on">strict validation clean &times; 3</span>
+          <span class="chip off">release-ready: not yet</span>
+        </div>
+      </section>
+
+      <!-- 2 · thesis --------------------------------------------------- -->
+      <section class="slide" data-label="Why on your face">
+        <div class="head">
+          <span class="eyebrow">The shared thesis</span>
+          <h2>Each one does something a phone in your pocket structurally can&rsquo;t</h2>
+          <p class="lead">The glasses already answer questions out loud. All three agents were scoped to the
+            things a general voice assistant cannot do: remember your numbers, read the sensor already strapped
+            to your head, and watch the thing you can&rsquo;t see &mdash; yourself.</p>
+        </div>
+        <div class="body stack">
+          <div class="trio" style="flex: 1">
+            <div class="card">
+              <div class="top"><span class="mark lg">DT</span><span class="name">Memory</span></div>
+              <p>Every tap is a logged set, kept on the glasses. The next session starts from real numbers
+                instead of a guess, and the summary can compare today with the last time you trained this
+                muscle group.</p>
+              <p class="cite">vs Sep 4 &middot; Bench Press +2.5 kg<br>Pec Deck +5 kg</p>
+            </div>
+            <div class="card">
+              <div class="top"><span class="mark lg">DR</span><span class="name">A sensor already on your head</span></div>
+              <p>Running cadence usually needs a watch or a foot pod. Head-mounted, every stride arrives as a
+                nod on the gyroscope, so the glasses can read cadence with no extra hardware and beat time
+                against it.</p>
+              <p class="cite">180 spm detected within &plusmn;3 spm<br>60 Hz gyroscope, 6 s of curve on screen</p>
+            </div>
+            <div class="card">
+              <div class="top"><span class="mark lg">WH</span><span class="name">A view of yourself</span></div>
+              <p>You cannot see your own head angle or how close you have drifted to the monitor. The glasses
+                sit exactly where that measurement has to be taken, and say something only when it has been
+                wrong for long enough to matter.</p>
+              <p class="cite">head down &ge; 18&deg; held 8 s &rarr; alert<br>under 45 cm held 15 s &rarr; alert</p>
+            </div>
+          </div>
+          <div class="note"><b>No backend, no network, no companion app.</b> All three run entirely on the
+            glasses: pure logic modules that take <code>now</code> as an argument, state in
+            <code>localStorage</code>, and a chat card fallback when the Page is shown inside the conversation
+            instead of on the lens.</div>
+        </div>
+      </section>
+
+      <!-- 3 · DoubleTraining ------------------------------------------- -->
+      <section class="slide" data-label="DoubleTraining">
+        <div class="head">
+          <span class="tag"><span class="mark">DT</span> github.com/cnYui/doubletraining &middot; pages/dates &middot; pages/day &middot; pages/plan</span>
+          <h2>DoubleTraining &mdash; a workout book you wear</h2>
+        </div>
+        <div class="body stack">
+          <div class="flow">
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-cal}}" alt="Training calendar with Friday September 11 enlarged and Week 2 of 5"></div>
+              <figcaption><b>pages/dates</b> &middot; a date wheel, not a month grid: the selected day is
+                enlarged with two neighbours each side, and every row carries its own state.</figcaption>
+            </figure>
+            <div class="arrow"><span>&rsaquo;</span>tap</div>
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-tick}}" alt="Day plan with three Bench Press set boxes filled, 3 of 15 sets"></div>
+              <figcaption><b>pages/day</b> &middot; one tap logs the planned weight &times; reps and ticks the
+                next box; when an exercise is finished, focus jumps to the next open one.</figcaption>
+            </figure>
+            <div class="arrow"><span>&rsaquo;</span>last set</div>
+            <figure class="plate">
+              <div class="screen"><img src="{{IMG:dt-done}}" alt="Workout summary: 15 sets, 6,580 kg volume, cardio 30 min, comparison with September 4"></div>
+              <figcaption><b>summary</b> &middot; sets, volume, elapsed, cardio &mdash; then the line only your
+                own history can produce.</figcaption>
+            </figure>
+          </div>
+          <div class="two">
+            <div class="rows">
+              <div class="row"><span class="k"><b>Chest day, checked off</b> &middot; 5 exercises, one tap per set</span><span class="v">15 sets &middot; 6,580 kg</span></div>
+              <div class="row"><span class="k"><b>Set state by shape</b>, not brightness alone &middot; outline, double line, filled</span><span class="v">3 marks</span></div>
+              <div class="row"><span class="k"><b>Voice plan editor</b> &middot; &ldquo;bench press eighty two point five&rdquo;</span><span class="v ok">80 &rarr; 82.5 kg</span></div>
+              <div class="row"><span class="k">Common phrasings are parsed on the glasses; anything else goes to the model</span><span class="v">~3 s &middot; 7&ndash;90 s</span></div>
+            </div>
+            <div class="col">
+              <div class="note"><b>Weight edits before the model answers.</b> The in-page language model
+                returns tool calls (<code>add_exercise</code>, <code>adjust_weight</code>,
+                <code>set_week</code>) but took 7 to 90 seconds in the simulator, so a local grammar handles
+                the phrasings people actually use, including spoken decimals, and the model is the fallback.</div>
+              <div class="note warn"><b>The rest countdown is built and parked.</b> Per-exercise rest, swipe to
+                change the next set&rsquo;s weight, deadline-based so it survives the Page being hidden &mdash;
+                switched off at the owner&rsquo;s request. <code>REST_TIMER_ENABLED = true</code> brings it back.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 · DoubleRunner --------------------------------------------- -->
+      <section class="slide" data-label="DoubleRunner">
+        <div class="head">
+          <span class="tag"><span class="mark">DR</span> github.com/cnYui/DoubleRunner &middot; pages/run &middot; build 2026-09-11.1</span>
+          <h2>DoubleRunner &mdash; cadence you can hear</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.25">
+            <div class="flow">
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:dr-run}}" alt="Running: six seconds of stride curve with step ticks, 196 spm, target 190 plus 6 fast, 3.2 beats per second, 45 steps"></div>
+                <figcaption><b>Running</b> &middot; the last 6 s of angular velocity on the dominant axis, a
+                  dot per detected step, 44 px cadence figures, and the beat dot lit at capture.</figcaption>
+              </figure>
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:dr-done}}" alt="Finished run: cadence chart for the whole session with the target as a dashed line, average 186 spm, 43 percent on target"></div>
+                <figcaption><b>Finished</b> &middot; the live curve is replaced once by the cadence chart for
+                  the whole run, drawn at the end rather than every frame.</figcaption>
+              </figure>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="v">186<small> spm</small></div><div class="k">average cadence, 52 s run</div></div>
+              <div class="stat"><div class="v">43 %</div><div class="k">of the run on target</div></div>
+              <div class="stat"><div class="v">&plusmn;3<small> spm</small></div><div class="k">detector error, synthetic strides</div></div>
+              <div class="stat"><div class="v">333<small> ms</small></div><div class="k">one beat at 180 spm, no drift</div></div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div class="rows">
+              <div class="row"><span class="k"><b>One click runs the whole session</b><br>ready &rarr; running &rarr; paused &rarr; done</span><span class="v">4 states</span></div>
+              <div class="row"><span class="k"><b>Swipe sets the target</b>, retuned on the next beat so the rhythm never stutters</span><span class="v">&plusmn;5 spm</span></div>
+              <div class="row"><span class="k">Target range, clamped &middot; default when unspecified</span><span class="v">120&ndash;220 &middot; 180</span></div>
+              <div class="row"><span class="k">Voice opens the Page with the number: &ldquo;cadence 175&rdquo;</span><span class="v">targetCadence</span></div>
+              <div class="row"><span class="k">Every run saved with its per-second cadence series</span><span class="v">newest 20</span></div>
+            </div>
+            <div class="note"><b>Leaving mid-run pauses and releases the sensor</b>, and an unfinished run that
+              has steps is saved silently on unload. The Back key is left to the host, so the glasses behave
+              the way the rest of the system does.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · WorkHealthier -------------------------------------------- -->
+      <section class="slide" data-label="WorkHealthier">
+        <div class="head">
+          <span class="tag"><span class="mark">WH</span> github.com/cnYui/WorkHealthier &middot; pages/monitor &middot; CAMERA permission</span>
+          <h2>WorkHealthier &mdash; the desk you can&rsquo;t see yourself at</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.25">
+            <div class="flow">
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:wh-good}}" alt="Monitoring view: posture and distance tiles with values and marks, detail lines, three setting rows"></div>
+                <figcaption><b>Monitoring</b> &middot; two tiles with a value and a mark, details for the
+                  focused item, and the five things a swipe can reach.</figcaption>
+              </figure>
+              <figure class="plate">
+                <div class="screen"><img src="{{IMG:wh-alert}}" alt="Too close alert: dashed frame over the tile area with a title, one line of guidance and the dismiss hint"></div>
+                <figcaption><b>One alert at a time</b> &middot; posture first, then distance, then sitting
+                  time; a dashed frame, one line of guidance, dismiss with a tap or a nod.</figcaption>
+              </figure>
+            </div>
+            <div class="note warn"><b>The brief asked for infrared or laser ranging. The platform has
+              neither</b> &mdash; AIUI 0.17 exposes Bluetooth, accelerometer, orientation, gyroscope and
+              battery, and the hardware is one 12 MP camera plus an IMU. So distance is measured the way the
+              barcode sample does it: from the apparent size of a QR marker on the monitor.</div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div class="rows">
+              <div class="row"><span class="k"><b>Posture</b> from the rotation-vector sensor, relative to a baseline you set with a tap</span><span class="v">EMA &middot; 8 s</span></div>
+              <div class="row"><span class="k">Head down &middot; watch, then alert</span><span class="v">&ge; 10&deg; &middot; &ge; 18&deg;</span></div>
+              <div class="row"><span class="k">Head tilt &middot; watch, then alert</span><span class="v">&ge; 7&deg; &middot; &ge; 12&deg;</span></div>
+              <div class="row"><span class="k"><b>Eye distance</b> &middot; one low-quality photo, WebP decoded in JS, QR found, size to centimetres</span><span class="v">every 20 s</span></div>
+              <div class="row"><span class="k">Too close, held &middot; the one-tap calibration cancels marker-size error</span><span class="v">&lt; 45 cm &middot; 15 s</span></div>
+              <div class="row"><span class="k"><b>Sitting</b> without a break</span><span class="v">45 min</span></div>
+            </div>
+            <div class="note">Runtimes with no sensor and no camera &mdash; the web simulator, the browser
+              preview &mdash; drop into a <b>150-second scripted demo</b> after a 6 s timeout, so every alert
+              can be seen and dismissed without hardware.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 · design system ------------------------------------------- -->
+      <section class="slide" data-label="One design system">
+        <div class="head">
+          <span class="eyebrow">Shared design system</span>
+          <h2>Three sizes, one hue, five steps of light</h2>
+          <p class="lead">A Page renders into a 15:11 landscape viewport inside a 3:4 optical canvas, and the
+            same Page has to survive as a card in the conversation flow. All three projects use the same three
+            canvases and the same single green.</p>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.05">
+            <div class="canvases" style="margin: 10px 0 30px">
+              <div class="cbox" style="width: 180px; height: 240px">
+                <div class="inner" style="left: -1px; top: 54px; width: 180px; height: 132px"></div>
+                <span class="lab"><b>480 &times; 640</b> optical canvas</span>
+              </div>
+              <div class="cbox" style="width: 180px; height: 132px; border-style: dashed; border-color: var(--accent); background: var(--accent-soft)">
+                <span class="lab"><b>480 &times; 352</b> page viewport</span>
+              </div>
+              <div class="cbox" style="width: 168px; height: 56px">
+                <span class="lab"><b>448 &times; 150</b> inline card</span>
+              </div>
+              <p style="font-family: var(--mono); font-size: 10.5px; line-height: 1.5; align-self: flex-end; padding-bottom: 2px">drawn to<br>one scale<br>&mdash; 0.375&times;</p>
+            </div>
+            <div class="rows">
+              <div class="row"><span class="k">Safe area inside the viewport &middot; content width</span><span class="v">16 / 12 px &middot; 448 px</span></div>
+              <div class="row"><span class="k">Structural lines &middot; control corners &middot; panel corners</span><span class="v">1 px &middot; 4 px &middot; 6 px</span></div>
+              <div class="row"><span class="k">Largest filled area, so the optics stay readable in daylight</span><span class="v">12 % luminance</span></div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1">
+            <div>
+              <div class="ladder">
+                <div><i style="opacity: 1"></i></div>
+                <div><i style="opacity: 0.72"></i></div>
+                <div><i style="opacity: 0.48"></i></div>
+                <div><i style="opacity: 0.24"></i></div>
+                <div><i style="opacity: 0.12"></i></div>
+              </div>
+              <div class="ladder-labels"><span>100 %</span><span>72 %</span><span>48 %</span><span>24 %</span><span>12 %</span></div>
+            </div>
+            <p><code>#40ff5e</code> and nothing else. Hierarchy comes from luminance, size and position, never
+              from a second hue, because the display has none &mdash; which is why every state also carries a
+              <strong>shape</strong>: an outlined box, a double line, a filled box, a dashed alert frame.</p>
+            <div class="note"><b>Below 240 px of height the same Page becomes a card.</b> DoubleTraining keeps
+              the date, the count and the focus; DoubleRunner keeps the state, the cadence, the target and the
+              hint; WorkHealthier keeps the status line and the two tiles. One layout, two densities &mdash;
+              not a second Page.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 · input ---------------------------------------------------- -->
+      <section class="slide" data-label="Temple and voice">
+        <div class="head">
+          <span class="eyebrow">Input &middot; measured in the Studio 1.1.0 simulator, not assumed</span>
+          <h2>What the temple actually sends, and what each agent does with it</h2>
+        </div>
+        <div class="body">
+          <div class="col" style="flex: 1.5">
+            <table>
+              <thead>
+                <tr><th style="width: 108px">Gesture</th><th style="width: 150px">Keys the Page gets</th><th>DoubleTraining</th><th>DoubleRunner</th><th>WorkHealthier</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Tap</b></td><td class="m ok">GlobalHook &rarr; Enter</td><td>open the day &middot; log a set</td><td>start &middot; pause &middot; resume</td><td>dismiss the alert, else run the focused action</td></tr>
+                <tr><td><b>Swipe forward</b></td><td class="m ok">GlobalHook &rarr; ArrowUp</td><td>previous day or exercise</td><td>target +5 spm</td><td>move the focus frame</td></tr>
+                <tr><td><b>Swipe back</b></td><td class="m ok">GlobalHook &rarr; ArrowDown</td><td>next day or exercise</td><td>target &minus;5, or finish when paused</td><td>move the focus frame</td></tr>
+                <tr class="faint"><td><b>Double tap</b></td><td class="m no">nothing reaches a Page</td><td>meant as back to the calendar</td><td>left to the host</td><td>exit, via the host&rsquo;s own Backspace</td></tr>
+              </tbody>
+            </table>
+            <div class="note"><b>GlobalHook arrives before every gesture.</b> Treating it as a tap would fire
+              twice per touch, so the Pages act on gesture keys only &mdash; and a <b>lone</b> GlobalHook,
+              which physical glasses may send instead, becomes one tap after 280 ms. Key order on the real
+              device is still unconfirmed.</div>
+          </div>
+          <div class="col" style="flex: 1">
+            <h3>Voice, on the glasses</h3>
+            <div class="rows">
+              <div class="row"><span class="k">The wake word reaches the Page, and <code>preventDefault()</code> keeps the host out of it</span><span class="v ok">onVoiceWakeup</span></div>
+              <div class="row"><span class="k">Recognition runs in the Page, started from a temple tap</span><span class="v ok">SpeechRecognition</span></div>
+              <div class="row"><span class="k">The in-page model answers with tool calls, not prose</span><span class="v ok">LanguageModel</span></div>
+              <div class="row"><span class="k">Tool results cannot be sent back, so each utterance gets its own session</span><span class="v no">one-way</span></div>
+              <div class="row"><span class="k">Haptics: nothing in the API, nothing in the runtime</span><span class="v no">absent</span></div>
+            </div>
+            <p>Voice also opens a Page with a slot rather than answering in words: <code>{ "date": "today" }</code>
+              for a day plan, <code>targetCadence: 175</code> for a run. Routing needs a Studio build and
+              review, so it is still unverified.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8 · signals -------------------------------------------------- -->
+      <section class="slide" data-label="From IMU to a number">
+        <div class="head">
+          <span class="eyebrow">Signal processing &middot; pure functions, replayable in Node</span>
+          <h2>From a head-mounted IMU to a number you can act on</h2>
+        </div>
+        <div class="body stack">
+          <div>
+            <span class="tag" style="margin-bottom: 8px"><span class="mark">DR</span> cadence &middot; every stride arrives as a nod</span>
+            <div class="pipe" style="margin-top: 8px">
+              <div class="step"><span class="sn">01</span><span class="sh">Raw sample</span><span class="sd">3 axes, 60 Hz<br>rad/s or m/s&sup2;</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">02</span><span class="sh">High-pass</span><span class="sd">&tau; = 0.8 s<br>drift and gravity out</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">03</span><span class="sh">Pick the axis</span><span class="sd">largest recent variance<br>30 % hysteresis</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">04</span><span class="sh">Low-pass</span><span class="sd">&tau; = 40 ms<br>smooths the peak</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">05</span><span class="sh">Armed peak</span><span class="sd">&gt; max(0.35 rad/s, 0.9 &times; RMS)<br>250&ndash;1500 ms apart</span></div>
+              <span class="tick">&rsaquo;</span>
+              <div class="step"><span class="sn">06</span><span class="sh">Cadence</span><span class="sd">60000 / median of 8<br>smoothed 35 %</span></div>
+            </div>
+          </div>
+          <div class="two" style="flex: 1">
+            <div class="col">
+              <span class="tag"><span class="mark">WH</span> posture and distance &middot; two pipelines, one Page</span>
+              <div class="codeblock"><span class="cm">// posture</span>
+quaternion &rarr; relative to baseline &rarr; pitch / roll
+  &rarr; EMA &rarr; good | watch | poor &rarr; 8 s dwell &rarr; alert
+
+<span class="cm">// eye-to-screen distance</span>
+cm = K &middot; marker_mm / longest_side_px / 10
+  <span class="cm">K = 0.446 by default (&asymp; 96&deg; field of view),</span>
+  <span class="cm">replaced by a one-tap calibration at a known distance</span></div>
+              <p>Three consecutive misses show &ldquo;No marker&rdquo; and keep the last reading; a permission
+                refusal or a host that rejects timer-driven photos falls back to tap-to-measure.</p>
+            </div>
+            <div class="col">
+              <h3>The two traps both detectors avoid</h3>
+              <div class="rows">
+                <div class="row"><span class="k"><b>Counting one event twice.</b> A nod has two lobes, and a head wobbles around a threshold &mdash; so a step only counts after the signal has fallen back below the baseline, and a posture level has to hold for 8 s before it speaks</span><span class="v ok">re-arm<br>+ dwell</span></div>
+                <div class="row"><span class="k"><b>Inventing an interval.</b> If samples stop and resume, the filters restart instead of reading the gap as one enormous stride</span><span class="v ok">restart</span></div>
+              </div>
+              <div class="chips">
+                <span class="chip on">180 spm &plusmn;3</span>
+                <span class="chip on">172 spm, awkward axis &plusmn;3</span>
+                <span class="chip on">110 spm walk &plusmn;3</span>
+                <span class="chip on">160 &rarr; 184 tracked &plusmn;4</span>
+                <span class="chip on">accelerometer fallback &plusmn;3</span>
+                <span class="chip on">noise, no motion: 0 steps</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9 · platform ------------------------------------------------- -->
+      <section class="slide" data-label="What the platform refused">
+        <div class="head">
+          <span class="eyebrow">Six findings that changed the products, not just the code</span>
+          <h2>What the platform refused to do</h2>
+        </div>
+        <div class="body stack">
+          <div class="finds">
+            <div class="find">
+              <span class="sym">No vibration API anywhere in AIUI 0.17</span>
+              <p>&ldquo;Buzz the temple at 180 spm&rdquo; was the obvious design and is not buildable: no
+                haptic entry in the docs, the samples or the runtime.</p>
+              <span class="fix">DR &middot; the beat is a 1200 Hz tick with an accent every fourth, plus a dot
+                lit for 110 ms. In traffic the dot carries it alone.</span>
+            </div>
+            <div class="find">
+              <span class="sym">No time-of-flight, laser or infrared</span>
+              <p>One 12 MP camera and an IMU. Distance has to come out of an image, and an image needs
+                something of known size in it.</p>
+              <span class="fix">WH &middot; a printed QR marker on the monitor, ranged by apparent size, with a
+                one-tap calibration that cancels the printing error.</span>
+            </div>
+            <div class="find">
+              <span class="sym">A double tap never reaches a Page</span>
+              <p>Confirmed with Page-level key logs: only the system home page reacts. The gesture is real on
+                the glasses but untestable off them.</p>
+              <span class="fix">All three &middot; every &ldquo;back&rdquo; is left to the host, and no
+                destructive action hangs off a double tap.</span>
+            </div>
+            <div class="find">
+              <span class="sym"><code>new Date(y, m, d)</code> could not be trusted</span>
+              <p>The same call returned different results between runs, and a chat card once opened 20 days
+                ahead because a UTC offset in seconds was read as minutes.</p>
+              <span class="fix">DT &middot; integer days since 1970-01-01 for all date maths, one normaliser
+                for the offset, &ldquo;today&rdquo; only from <code>Date.now()</code>.</span>
+            </div>
+            <div class="find">
+              <span class="sym">The template engine lost rows and ignored classes</span>
+              <p>A dynamic class on the <code>&lt;page&gt;</code> root did nothing (black screen), loop
+                variables were unbound on the element carrying <code>ink:for</code>, and rows inside a
+                re-created <code>ink:if</code> never came back.</p>
+              <span class="fix">All three &middot; static root class, every loop wrapped in a
+                <code>&lt;block&gt;</code>, panels stay mounted and switch on a data-bound class.</span>
+            </div>
+            <div class="find">
+              <span class="sym">A hidden browser pane renders zero frames</span>
+              <p>With the pane out of sight the runtime reports <code>hidden</code> and stops animating, so an
+                import stalls mid-unpack and the preview freezes.</p>
+              <span class="fix">Process &middot; Studio stays in front for every capture. Every screen in this
+                deck was taken that way.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10 · status -------------------------------------------------- -->
+      <section class="slide" data-label="Status and next">
+        <div class="head">
+          <span class="eyebrow">Honest ledger &middot; all three projects, this revision</span>
+          <h2>Green in the simulator, blocked on the glasses</h2>
+        </div>
+        <div class="body stack">
+          <table>
+            <thead>
+              <tr><th style="width: 168px">Project</th><th style="width: 104px">Node tests</th><th style="width: 116px">Validation</th><th>Seen working in AIUI Studio</th><th style="width: 160px">Audit matrix</th><th style="width: 108px">Real glasses</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="mark">DT</span> <b>DoubleTraining</b></td>
+                <td class="m ok">49 / 49</td><td class="m ok">strict, clean</td>
+                <td>import and re-import in place, the date wheel, tap-to-tick with auto-advance, the summary with volume and last-session comparison, voice plan edits in ~3 s</td>
+                <td class="m no">119 rows blocked<br>0 fail</td><td class="m no">not run</td>
+              </tr>
+              <tr>
+                <td><span class="mark">DR</span> <b>DoubleRunner</b></td>
+                <td class="m ok">41 / 41</td><td class="m ok">strict, clean</td>
+                <td>all four states, beat scheduling and the achieved rate, the gyro &rarr; accelerometer &rarr; demo fallback, records persisted, both layout densities, .aix packed at 54.95 KB</td>
+                <td class="m no">65 rows blocked<br>0 fail</td><td class="m no">not run</td>
+              </tr>
+              <tr>
+                <td><span class="mark">WH</span> <b>WorkHealthier</b></td>
+                <td class="m ok">42 / 42</td><td class="m ok">strict, clean</td>
+                <td>the monitoring layout and its focus frame, every alert raised and dismissed through the 150 s demo, the compact chat card, calibration, marker page</td>
+                <td class="m no">48 rows blocked<br>0 fail</td><td class="m no">not run</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="two" style="flex: 1">
+            <div class="col">
+              <div class="note warn"><b>Blocked is the designed answer, not a failure.</b> No row is marked
+                FAIL. Every evidence layer wants a signed capture manifest and a session on physical Rokid
+                Glasses, and neither exists on this workstation &mdash; so the audit reports BLOCKED and
+                release-ready: NO for all three.</div>
+              <p>A simulator reproduces the runtime, never the hardware: optics in daylight, motion blur,
+                sensor axis signs, camera policy, decode time, the nod, speech volume and the real key order
+                are all still open.</p>
+            </div>
+            <div class="col">
+              <h3>Next session, in order</h3>
+              <div class="rows">
+                <div class="row"><span class="k">Import all three on the glasses and confirm the temple key order, including the double tap</span><span class="v">1</span></div>
+                <div class="row"><span class="k">Run 5 minutes at 180 spm; compare the detected cadence with a manual count and check the tick is audible at pace</span><span class="v">2</span></div>
+                <div class="row"><span class="k">Calibrate the marker at a measured distance, then check the posture axis signs against the labels</span><span class="v">3</span></div>
+                <div class="row"><span class="k">Build and review in Studio so voice can open a day by date and a run by cadence</span><span class="v">4</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="nav">
+  <button type="button" id="prev" aria-label="Previous slide">&larr;</button>
+  <button type="button" id="next" aria-label="Next slide">&rarr;</button>
+</div>
+
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    var fit = document.getElementById('fit');
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var dots = document.getElementById('dots');
+    var current = 0;
+
+    slides.forEach(function (slide, i) {
+      var chrome = document.createElement('div');
+      chrome.className = 'chrome';
+      chrome.innerHTML =
+        '<span class="wm"><b>Rokid Glasses</b> &middot; ' + slide.dataset.label + '</span>' +
+        '<span>' + String(i + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0') + '</span>';
+      slide.appendChild(chrome);
+
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', 'Slide ' + (i + 1) + ': ' + slide.dataset.label);
+      dot.addEventListener('click', function () { show(i); });
+      dots.appendChild(dot);
+    });
+
+    function show(n) {
+      current = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, i) { s.classList.toggle('is-current', i === current); });
+      Array.prototype.forEach.call(dots.children, function (d, i) {
+        d.setAttribute('aria-current', i === current ? 'true' : 'false');
+      });
+      if (history.replaceState) history.replaceState(null, '', '#' + (current + 1));
+    }
+
+    function resize() {
+      var scale = Math.min((window.innerWidth - 40) / 1280, (window.innerHeight - 40) / 720);
+      scale = Math.max(0.2, scale);
+      stage.style.transform = 'scale(' + scale + ')';
+      fit.style.width = (1280 * scale) + 'px';
+      fit.style.height = (720 * scale) + 'px';
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { show(current + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(current - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { show(0); }
+      else if (e.key === 'End') { show(slides.length - 1); }
+    });
+    document.getElementById('prev').addEventListener('click', function () { show(current - 1); });
+    document.getElementById('next').addEventListener('click', function () { show(current + 1); });
+    window.addEventListener('resize', resize);
+
+    resize();
+    window.addEventListener('hashchange', function () {
+      show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+    });
+    show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  })();
+</script>
+</body>
+</html>
