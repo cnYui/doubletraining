@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/dates/index", "pages/day/index", "pages/plan/index"],
+  "pages": ["pages/dates/index", "pages/day/index", "pages/build/index", "pages/plan/index", "pages/setplan/index"],
   "window": {
     "navigationBarTitleText": "Double Training"
   }

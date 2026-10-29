@@ -1,7 +1,7 @@
 <script def>
 {
   "navigationBarTitleText": "Double Training",
-  "description": "Edit the training plan by voice: plan the week, give a day a focus (chest, back, legs, shoulders, rest), add, change, or remove exercises, and tune weights. Invoke when the user wants to set up, change, or edit their plan or an exercise; pass the day as date when one is mentioned.",
+  "description": "Edit the training plan by voice: plan the week, give a day a focus (chest, back, legs, shoulders, rest), add, change, or remove exercises, and tune weights. Invoke when the user wants to set up, change, or edit their training plan or an exercise, and pass their own words as request so the edit is applied at once; pass the day as date when one is mentioned.",
   "schema": {
     "data": {
       "type": "object",
@@ -10,6 +10,11 @@
           "type": "string",
           "maxLength": 10,
           "description": "Day to edit: today, tomorrow, yesterday, or YYYY-MM-DD. Defaults to the day edited last, then today."
+        },
+        "request": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "One complete plan instruction in English, built from what the user said and agreed with you, for example: Monday chest; add bench press 4 sets of 8 at 60 kg, incline press 4 sets of 8 at 50 kg; or this week is chest, back, rest, legs, shoulders, rest, rest. Include every exercise with sets, reps and kilos once they are known; ask the user for missing kilos before opening the Page."
         }
       }
     }
@@ -27,7 +32,9 @@ import {
   PLAN_TOOLS,
   applyCommand,
   buildSystemPrompt,
+  listsSeveralExercises,
   localCommand,
+  normalizeRequest,
   nudgeKg
 } from '../../lib/plan.js';
 import { interpretUtterance } from '../../lib/interpret.js';
@@ -131,6 +138,13 @@ export default {
       ' edit=' + this._editKey + ' asr=' + (speechRecognitionClass() ? 'yes' : 'no') +
       ' llm=' + (languageModel() ? 'yes' : 'no'));
     this._render();
+    // The host AI passed the user's words: run them like a finished transcript.
+    const request = normalizeRequest(query ? query.request : undefined);
+    if (request) {
+      setTimeout(() => {
+        if (this._alive && this._mode === 'idle') this._handleTranscript(request);
+      }, 0);
+    }
   },
 
   onShow() {
@@ -368,7 +382,7 @@ export default {
       return;
     }
     // Common phrasings are parsed here; the model handles everything else.
-    const parsed = parseCommand(text, this._days[this._editKey]);
+    const parsed = listsSeveralExercises(text) ? null : parseCommand(text, this._days[this._editKey]);
     if (parsed) {
       console.log('[doubletraining] plan grammar ' + this._id + ' ' + JSON.stringify(parsed));
       this._applyCalls({ calls: [parsed], error: null }, text);

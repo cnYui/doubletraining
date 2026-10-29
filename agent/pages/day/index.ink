@@ -23,8 +23,10 @@ import { monthDayLabel, resolveDateInput, shortLabel, todayKey } from '../../lib
 import {
   adjustKg,
   cardioMinutes,
+  dayMode,
   dayStatus,
   dayTotals,
+  hasPartOnly,
   durationMinutes,
   firstOpenIndex,
   formatClock,
@@ -50,6 +52,7 @@ import { loadDays, saveDays } from '../../lib/store.js';
 import { createTempleInput } from '../../lib/temple.js';
 
 const VISIBLE_ROWS = 5;
+const READY_ROWS = 4;
 const REFRESH_INTERVAL_MS = 250;
 // Rest countdown is switched off for now: a tap only ticks the set's box.
 // Set to true to bring back the automatic rest screen after each set.
@@ -74,14 +77,6 @@ function hintParts(pairs) {
     });
   });
   return parts;
-}
-
-function baseMode(day) {
-  const status = dayStatus(day);
-  if (status === 'none') return 'empty';
-  if (status === 'rest') return 'restday';
-  if (status === 'done') return 'done';
-  return 'list';
 }
 
 function boxesFor(item, isFocus) {
@@ -128,6 +123,11 @@ export default {
     panelRest: '',
     panelDone: '',
     panelEmpty: '',
+    panelReady: '',
+    readyRows: [],
+    readyMore: '',
+    readyMeta: '',
+    readyOptions: [],
     title: '',
     dateText: '',
     progressText: '',
@@ -159,6 +159,7 @@ export default {
     this._awareness = false;
     this._rest = null;
     this._lastClock = '';
+    this._option = 0;
     this._storage = pageStorage();
     this._todayKey = todayKey();
     const input = resolveDateInput(query ? query.date : undefined, this._todayKey);
@@ -176,7 +177,7 @@ export default {
     this._persisted = loaded.persisted;
     const day = this._day();
     this._cursor = Math.max(0, firstOpenIndex(day));
-    this._mode = baseMode(day);
+    this._mode = dayMode(day);
     this._id = Math.random().toString(36).slice(2, 6);
     let tz = 'n/a';
     try { tz = new Date().getTimezoneOffset(); } catch (error) { tz = 'error'; }
@@ -188,6 +189,8 @@ export default {
   onShow() {
     this._isVisible = true;
     console.log('[doubletraining] day onShow ' + this._id);
+    // Back from the planner: show the plan that was just saved.
+    if (this._mode === 'empty' || this._mode === 'restday' || this._mode === 'ready') this._reloadPlan();
     if (this._mode !== 'rest') return;
     this._syncRest();
     if (this._mode === 'rest') {
@@ -265,6 +268,11 @@ export default {
       this._logFocused();
     } else if (this._mode === 'rest') {
       this._endRest('skip');
+    } else if (this._mode === 'ready') {
+      if (this._option === 0) this._startTraining();
+      else this._openPlanner();
+    } else if (this._mode === 'empty' || this._mode === 'restday') {
+      this._openPlanner();
     } else {
       this._leave();
     }
@@ -286,6 +294,12 @@ export default {
 
   // Swipe forward is -1 (ArrowUp), swipe back is +1 (ArrowDown).
   _step(direction) {
+    if (this._mode === 'ready') {
+      this._option = this._option === 0 ? 1 : 0;
+      this._notice = '';
+      this._render();
+      return true;
+    }
     if (this._mode === 'list') {
       this._moveCursor(direction);
       return true;
@@ -299,6 +313,35 @@ export default {
 
   _day() {
     return this._days[this._dateKey];
+  },
+
+  _reloadPlan() {
+    const loaded = loadDays(this._storage, this._todayKey);
+    this._days = loaded.days;
+    this._persisted = loaded.persisted;
+    const day = this._day();
+    this._mode = dayMode(day);
+    this._cursor = Math.max(0, firstOpenIndex(day));
+    this._option = 0;
+    this._notice = '';
+    this._render();
+  },
+
+  _startTraining() {
+    this._cursor = Math.max(0, firstOpenIndex(this._day()));
+    this._mode = 'list';
+    this._notice = '';
+    this._render();
+  },
+
+  _openPlanner() {
+    wx.navigateTo({
+      url: '/pages/build/index?date=' + this._dateKey,
+      fail: () => {
+        this._notice = "Couldn't open the planner; tap again";
+        this._render();
+      }
+    });
   },
 
   _commit(day) {
@@ -486,19 +529,24 @@ export default {
     if (this._mode === 'rest') {
       return [['Tap', 'skip rest'], ['Double-tap', 'undo set'], ['Swipe', 'adjust weight']];
     }
+    if (this._mode === 'ready') return [['Swipe', 'choose'], ['Tap', 'go'], ['Double-tap', back]];
+    if (this._mode === 'empty' || this._mode === 'restday') {
+      return [['Tap', 'plan this day'], ['Double-tap', back]];
+    }
     if (this._fromDates) return [['Tap / Double-tap', 'back to calendar']];
     return [['Tap', 'close'], ['Double-tap', 'exit']];
   },
 
   _render() {
     const day = this._day();
-    const hasPlan = Boolean(day && !day.rest && day.items.length);
+    const hasPlan = Boolean(day && !day.rest && day.items.length) || hasPartOnly(day);
     const patch = {
       mode: this._mode,
       panelList: this._mode === 'list' ? 'full-on' : '',
       panelRest: this._mode === 'rest' ? 'full-on' : '',
       panelDone: this._mode === 'done' ? 'full-on' : '',
       panelEmpty: this._mode === 'empty' || this._mode === 'restday' ? 'full-on' : '',
+      panelReady: this._mode === 'ready' ? 'full-on' : '',
       title: shortLabel(this._dateKey) + (hasPlan ? ' · ' + day.focus : ''),
       dateText: shortLabel(this._dateKey),
       notice: this._notice ||
@@ -508,6 +556,7 @@ export default {
     if (this._mode === 'list') Object.assign(patch, this._listPatch(day));
     else if (this._mode === 'rest') Object.assign(patch, this._restPatch(day));
     else if (this._mode === 'done') Object.assign(patch, this._donePatch(day));
+    else if (this._mode === 'ready') Object.assign(patch, this._readyPatch(day));
     else Object.assign(patch, this._emptyPatch());
     this.setData(patch);
   },
@@ -606,15 +655,49 @@ export default {
     };
   },
 
-  _emptyPatch() {
-    const restDay = this._mode === 'restday';
+  _readyPatch(day) {
+    const totals = dayTotals(day);
+    const rows = day.items.slice(0, READY_ROWS).map((item) => ({
+      k: item.id, name: item.name, rx: prescription(item)
+    }));
+    const more = day.items.length - rows.length;
     return {
-      emptyTitle: restDay ? 'Rest day' : 'No workout planned',
-      emptyText: restDay ? 'No training today. Recover well.' :
-        'Go back to the calendar and pick a planned day.',
+      readyRows: rows,
+      readyMore: more > 0 ? '+' + more + ' more' : '',
+      readyMeta: plural(day.items.length, 'exercise') + ' · ' + plural(totals.sets, 'set'),
+      readyOptions: [
+        { k: 'start', label: 'Start training', on: this._option === 0 },
+        { k: 'edit', label: 'Edit plan', on: this._option === 1 }
+      ],
+      compactTitle: shortLabel(this._dateKey) + ' · ' + day.focus,
+      compactMeta: plural(day.items.length, 'exercise'),
+      compactValue: this._option === 0 ? 'Start training' : 'Edit plan',
+      compactBoxes: []
+    };
+  },
+
+  _emptyPatch() {
+    const day = this._day();
+    const restDay = this._mode === 'restday';
+    const partOnly = hasPartOnly(day);
+    let title = 'Nothing planned';
+    let text = 'Tap to choose what to train.';
+    let value = 'Not planned';
+    if (restDay) {
+      title = 'Rest day';
+      text = 'No training today. Tap to plan a workout instead.';
+      value = 'Rest day';
+    } else if (partOnly) {
+      title = day.focus + ' day';
+      text = 'No exercises yet. Tap to add some.';
+      value = day.focus;
+    }
+    return {
+      emptyTitle: title,
+      emptyText: text,
       compactTitle: shortLabel(this._dateKey),
       compactMeta: '',
-      compactValue: restDay ? 'Rest day' : 'Not planned',
+      compactValue: value,
       compactBoxes: []
     };
   }
@@ -691,6 +774,33 @@ export default {
       </view>
     </view>
     <text class="delta">{{deltaText}}</text>
+    <text class="notice" ink:if="{{notice}}">{{notice}}</text>
+    <view class="hint">
+      <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
+    </view>
+  </view>
+
+  <view class="full {{panelReady}}">
+    <view class="hdr">
+      <text class="title">{{title}}</text>
+      <text class="meta">{{readyMeta}}</text>
+    </view>
+    <view class="ready-rows">
+      <block ink:for="{{readyRows}}" ink:for-item="row" ink:key="k">
+        <view class="ready-row">
+          <text class="ready-name">{{row.name}}</text>
+          <text class="ready-rx">{{row.rx}}</text>
+        </view>
+      </block>
+      <text class="ready-more">{{readyMore}}</text>
+    </view>
+    <view class="ready-opts">
+      <block ink:for="{{readyOptions}}" ink:for-item="opt" ink:key="k">
+        <view class="ready-opt {{opt.on ? 'ready-opt-on' : ''}}">
+          <text class="ready-opt-t">{{opt.label}}</text>
+        </view>
+      </block>
+    </view>
     <text class="notice" ink:if="{{notice}}">{{notice}}</text>
     <view class="hint">
       <block ink:for="{{hint}}" ink:for-item="part" ink:key="k"><text class="{{part.key ? 'hk' : 'ht'}}">{{part.t}}</text></block>
@@ -1008,6 +1118,76 @@ export default {
   line-height: 17px;
   color: rgba(64, 255, 94, 0.72);
 }
+
+.ready-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.ready-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 28px;
+  border-bottom: 1px solid rgba(64, 255, 94, 0.24);
+}
+
+.ready-name {
+  flex: 1;
+  font-size: 14px;
+  line-height: 18px;
+  color: rgba(64, 255, 94, 0.72);
+}
+
+.ready-rx {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: rgba(64, 255, 94, 0.48);
+}
+
+.ready-more {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: rgba(64, 255, 94, 0.48);
+}
+
+.ready-opts {
+  display: flex;
+  flex-direction: row;
+  margin-top: 12px;
+}
+
+.ready-opt {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  margin-right: 10px;
+  box-sizing: border-box;
+  border: 1px solid rgba(64, 255, 94, 0.48);
+  border-radius: 4px;
+}
+
+.ready-opt:last-child { margin-right: 0; }
+
+.ready-opt-on {
+  border: 2px solid #40ff5e;
+  background-color: rgba(64, 255, 94, 0.12);
+}
+
+.ready-opt-t {
+  font-size: 15px;
+  line-height: 18px;
+  font-weight: 500;
+  color: rgba(64, 255, 94, 0.72);
+}
+
+.ready-opt-on .ready-opt-t { color: #40ff5e; }
 
 .empty-title {
   margin-top: 36px;

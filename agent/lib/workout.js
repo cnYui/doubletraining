@@ -432,9 +432,24 @@ export function plural(count, word) {
   return count + ' ' + word + (count === 1 ? '' : 's');
 }
 
+// A body part chosen in the builder before any exercise was added.
+export function hasPartOnly(day) {
+  return Boolean(day && !day.rest && day.items.length === 0 && day.focus && day.focus !== 'Training');
+}
+
+// Which panel the day Page opens in: empty / restday / ready (planned, nothing
+// logged yet) / list (training under way) / done.
+export function dayMode(day) {
+  const status = dayStatus(day);
+  if (status === 'none') return 'empty';
+  if (status === 'rest') return 'restday';
+  if (status === 'done') return 'done';
+  return status === 'planned' ? 'ready' : 'list';
+}
+
 export function daySummaryLabel(day) {
   const status = dayStatus(day);
-  if (status === 'none') return 'Not planned';
+  if (status === 'none') return hasPartOnly(day) ? 'No exercises yet' : 'Not planned';
   if (status === 'rest') return 'Rest day';
   if (status === 'done') return 'Done';
   const totals = dayTotals(day);
@@ -443,7 +458,8 @@ export function daySummaryLabel(day) {
 }
 
 export function focusChip(day) {
-  if (!day || (!day.rest && day.items.length === 0)) return '—';
+  if (!day) return '—';
+  if (!day.rest && day.items.length === 0) return hasPartOnly(day) ? day.focus : '—';
   return day.rest ? 'Rest' : day.focus;
 }
 

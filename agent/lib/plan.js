@@ -48,24 +48,24 @@ export function toNumber(value) {
   return null;
 }
 
-function toInteger(value, min, max) {
+export function toInteger(value, min, max) {
   const number = toNumber(value);
   if (number === null || !Number.isInteger(number) || number < min || number > max) return null;
   return number;
 }
 
-function toKg(value) {
+export function toKg(value) {
   const number = toNumber(value);
   if (number === null || number < 0 || number > 1000) return null;
   return Math.round(number * 100) / 100;
 }
 
-function cleanName(value) {
+export function cleanName(value) {
   if (typeof value !== 'string') return '';
   return Array.from(value.trim().replace(/\s+/g, ' ')).slice(0, MAX_NAME_LENGTH).join('');
 }
 
-function titleCase(name) {
+export function titleCase(name) {
   return name.split(' ').map((word) =>
     /^[a-z]/.test(word) ? word[0].toUpperCase() + word.slice(1) : word).join(' ');
 }
@@ -77,7 +77,7 @@ function canonical(name) {
   return tokens.join(' ').split(' ').filter(Boolean);
 }
 
-function slug(name) {
+export function slug(name) {
   return canonical(name).join('-').replace(/[^a-z0-9-]/g, '') || 'item';
 }
 
@@ -141,7 +141,7 @@ function withDay(days, key, day) {
   return next;
 }
 
-function trainingDay(days, key) {
+export function trainingDay(days, key) {
   const day = days[key];
   if (day && !day.rest) return cloneDay(day);
   return { focus: 'Training', rest: false, items: [] };
@@ -158,7 +158,7 @@ function uniqueId(day, name) {
   return id;
 }
 
-function stepFor(name, kg) {
+export function stepFor(name, kg) {
   const tokens = canonical(name);
   if (tokens.includes('db')) return 2;
   if (kg > 0 && kg < 15) return 1;
@@ -331,6 +331,23 @@ export function localCommand(transcript) {
   if (/^(undo|undo that|undo it|revert|go back|cancel that)$/.test(text)) return 'undo';
   if (/^(done|i'm done|finish|finished|that's it|that is it|save|save it|ok done)$/.test(text)) return 'finish';
   return null;
+}
+
+// The host AI passes the user's own words as `request`; it is treated as an
+// already transcribed utterance. Anything that is not a non-empty string is dropped.
+export const MAX_REQUEST_LENGTH = 200;
+
+export function normalizeRequest(value) {
+  if (typeof value !== 'string') return '';
+  return value.replace(/\s+/g, ' ').trim().slice(0, MAX_REQUEST_LENGTH);
+}
+
+// The grammar parses exactly one command and mis-reads a sentence that lists
+// several exercises, so such sentences go to the model instead.
+export function listsSeveralExercises(transcript) {
+  const text = String(transcript || '').toLowerCase();
+  const quantities = text.match(/\bsets?\s+(?:of|by)\b|\d\s*[x×]\s*\d|\btimes\b/g);
+  return Boolean(quantities && quantities.length > 1);
 }
 
 const FOCUS_ENUM = FOCUS_IDS.slice();

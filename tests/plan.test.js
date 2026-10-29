@@ -7,7 +7,10 @@ import {
   assignFocus,
   buildSystemPrompt,
   findItemIndex,
+  listsSeveralExercises,
   localCommand,
+  MAX_REQUEST_LENGTH,
+  normalizeRequest,
   nudgeKg,
   removeExercise,
   resolveDayRef,
@@ -236,4 +239,28 @@ test('tool declarations and the system prompt describe the day being edited', ()
   assert.match(empty, /nothing planned/);
   const rest = buildSystemPrompt({ todayKey: TODAY, editKey: '2026-09-13', day: days()['2026-09-13'] });
   assert.match(rest, /rest day/);
+});
+
+test('normalizeRequest keeps the user words, collapses whitespace, caps length', () => {
+  assert.equal(normalizeRequest('  Monday   chest\n'), 'Monday chest');
+  assert.equal(normalizeRequest('周一练胸'), '周一练胸');
+  assert.equal(normalizeRequest('x'.repeat(500)).length, MAX_REQUEST_LENGTH);
+  assert.equal(normalizeRequest('   '), '');
+  assert.equal(normalizeRequest(undefined), '');
+  assert.equal(normalizeRequest(42), '');
+  assert.equal(normalizeRequest({ text: 'chest' }), '');
+});
+
+test('a request string runs through the same local commands as a transcript', () => {
+  assert.equal(localCommand(normalizeRequest(' Undo ')), 'undo');
+  assert.equal(localCommand(normalizeRequest('done.')), 'finish');
+  assert.equal(localCommand(normalizeRequest('add squat')), null);
+});
+
+test('sentences that list several exercises are routed to the model', () => {
+  assert.equal(listsSeveralExercises('bench press 4 sets of 8 at 60, incline press 4 sets of 8 at 50'), true);
+  assert.equal(listsSeveralExercises('bench 4x8 and incline 4 x 8'), true);
+  assert.equal(listsSeveralExercises('add squat, five sets of five at a hundred'), false);
+  assert.equal(listsSeveralExercises('my week is chest, back, rest, legs, shoulders, rest, rest'), false);
+  assert.equal(listsSeveralExercises(''), false);
 });

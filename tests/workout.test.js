@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import {
   adjustKg,
   cardioMinutes,
+  dayMode,
   dayStatus,
   daySummaryLabel,
   dayTotals,
   durationMinutes,
   firstOpenIndex,
   focusChip,
+  hasPartOnly,
   formatClock,
   formatDelta,
   formatKg,
@@ -180,4 +182,27 @@ test('sanitizeDay drops malformed items and clamps untrusted data', () => {
   assert.equal(sanitizeDay('nope'), null);
   assert.deepEqual(Object.keys(sanitizeDays({ '2026-09-11': {}, 'bad': {}, '2026-02-30': {} })),
     ['2026-09-11']);
+});
+
+test('dayMode picks the panel the day Page opens in', () => {
+  const days = seedDays('2026-09-11');
+  assert.equal(dayMode(undefined), 'empty');
+  assert.equal(dayMode({ focus: 'Chest', rest: false, items: [] }), 'empty');
+  assert.equal(dayMode(days['2026-09-09']), 'restday');
+  assert.equal(dayMode(days['2026-09-11']), 'ready');
+  assert.equal(dayMode(days['2026-09-10']), 'list');
+  assert.equal(dayMode(days['2026-09-04']), 'done');
+});
+
+test('a body part chosen before any exercise shows on the calendar', () => {
+  const partOnly = { focus: 'Legs', rest: false, items: [] };
+  assert.equal(hasPartOnly(partOnly), true);
+  assert.equal(focusChip(partOnly), 'Legs');
+  assert.equal(daySummaryLabel(partOnly), 'No exercises yet');
+  const generic = { focus: 'Training', rest: false, items: [] };
+  assert.equal(hasPartOnly(generic), false);
+  assert.equal(focusChip(generic), '—');
+  assert.equal(daySummaryLabel(generic), 'Not planned');
+  assert.equal(hasPartOnly({ focus: 'Rest', rest: true, items: [] }), false);
+  assert.equal(hasPartOnly(undefined), false);
 });

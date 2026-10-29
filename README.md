@@ -20,18 +20,33 @@ In Studio, open the **New Agent** menu at the top left, choose **GitHub Import**
 | --- | --- | --- |
 | `pages/dates/index` training calendar | A date wheel: the selected day is enlarged with two days on each side, each showing its focus and progress | Swipe forward = previous day, swipe back = next day, tap = open that day, double tap = exit |
 | `pages/day/index` day plan | Exercises with one box per set, and a summary when everything is done | See below |
+| `pages/build/index` manual planner | Choose the day's body part, pick exercises from that part's list, set sets / reps / weight, save (fixed logic, no voice or model) | See "Planning a day by hand" |
 | `pages/plan/index` plan editor | The day being edited, one row per exercise; changes arrive by voice | Tap or wake word = speak, swipe = move (or change a weight while adjusting), double tap = done |
 
 Day plan states:
 
 | State | Tap | Double tap | Swipe forward / back |
 | --- | --- | --- | --- |
+| Ready (a planned day, nothing logged) | Start training, or Edit plan (opens the planner) | Back to the calendar | Choose Start training / Edit plan |
+| Empty or rest day | Open the planner for this day | Back to the calendar | — |
 | List | Log one set of the focused exercise at the planned weight and reps and tick its box; after the last set the focus moves to the next open exercise; on a cardio item, mark it done | Back to the calendar | Previous / next exercise |
 | Done | Back to the calendar | Back to the calendar | — |
 
 The done state shows sets, volume (Σ weight × reps), time, cardio minutes, and the weight change against the last session with the same focus.
 
 The rest countdown between sets (tap to skip, double tap to undo, swipe to adjust the next set's weight) is still in the code but switched off: `REST_TIMER_ENABLED = false` in `pages/day/index.ink`.
+
+## Planning a day by hand
+
+Open a day from the calendar. An empty day offers the planner with a tap; a planned day shows its exercises with **Start training** and **Edit plan**. Everything is done with the temple touchpad (tap = select, double tap = back, swipe = move or change a value) and the logic is fixed: no voice, no model.
+
+1. **Body part**: swipe through Chest, Back, Legs, Shoulders, Arms, Biceps, Triceps, Glutes, Calves, Abs, Cardio, Rest day; tap to choose. Choosing a different part clears the day's exercises.
+2. **List**: the day's exercises, `+ Add exercise`, `Save`. Tap an exercise to edit or remove it.
+3. **Add**: the built-in library of that body part only (about 200 exercises in `lib/exercises.js`; a switch row shows the cardio list on any day). Swipe, tap to tick, then `Save (N)`.
+4. **Set up**: each picked exercise in turn: sets, reps (seconds for timed holds), weight. Swipe forward adds, swipe back subtracts, a run of swipes takes bigger weight steps, tap goes to the next field, then **Save** or **Remove**. A new exercise starts from its last planned or logged setup, else a library default.
+5. **Train**: Save returns to the day; **Start training**, then tap to tick each set / cardio item as it is done.
+
+A day with logged sets is locked. The state machine is `lib/build.js` (pure, tested in `tests/build.test.js`).
 
 ## Editing the plan by voice
 
@@ -60,9 +75,10 @@ In the simulator, a tap and each swipe send `GlobalHook` first and then the gest
 ```text
 agent/                  AIUI Studio import root
   AGENTS.md             Agent identity, voice routing rules, capability limits
-  app.json              pages: dates, day
+  app.json              pages: dates, day, build, plan, setplan
   pages/dates/index.ink Training calendar
-  pages/day/index.ink   Day plan (list / done; rest countdown switched off)
+  pages/day/index.ink   Day plan (ready / list / done; rest countdown switched off)
+  pages/build/index.ink Manual planner (body part, exercises, sets, reps, weight)
   pages/plan/index.ink  Plan editor (voice in, temple to adjust)
   lib/                  Pure logic: dates, workout model, plan editing, grammar, model calls, storage, temple input
   aiui-audit-claims.json
